@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { TABLAS } from "@/lib/tablas";
+import VentaRapida from "@/components/VentaRapida";
 
 export default function TablaEditable({ tabla }) {
   const cfg = TABLAS[tabla];
@@ -17,6 +18,7 @@ export default function TablaEditable({ tabla }) {
   const [msg, setMsg] = useState(null);
   const [borrar, setBorrar] = useState(false);
   const [cargando, setCargando] = useState(true);
+  const [vender, setVender] = useState(null);
 
   async function cargar() {
     let qy = sb.from(cfg.vista).select("*").order(cfg.orden, { ascending: !cfg.desc }).range(0, 4999);
@@ -183,16 +185,23 @@ export default function TablaEditable({ tabla }) {
       {cargando ? <p className="text-white/50">Cargando…</p> : (
         <div className="space-y-2">
           {visibles.map((r) => (
-            <button key={r[cfg.pk]} onClick={() => abrir(r)} className="card flex w-full items-center justify-between gap-3 text-left active:bg-white/10">
-              <span className="min-w-0">
-                <span className="block truncate">{(cfg.titulo_fn ? cfg.titulo_fn(r) : r[cfg.titulo_campo]) || "(sin nombre)"}</span>
-                <span className="block truncate text-xs text-white/50">{cfg.sub(r)}</span>
-              </span>
-              <span className="shrink-0 text-sm">{derecha(r)}</span>
-            </button>
+            <div key={r[cfg.pk]} className="card flex w-full items-center gap-2 !p-0">
+              <button onClick={() => abrir(r)} className="flex min-w-0 flex-1 items-center justify-between gap-3 p-4 text-left active:bg-white/10">
+                <span className="min-w-0">
+                  <span className="block truncate">{(cfg.titulo_fn ? cfg.titulo_fn(r) : r[cfg.titulo_campo]) || "(sin nombre)"}</span>
+                  <span className="block truncate text-xs text-white/50">{cfg.sub(r)}</span>
+                </span>
+                <span className="shrink-0 text-sm">{derecha(r)}</span>
+              </button>
+              {cfg.vender && Number(r.inventario) > 0 && (
+                <button onClick={() => setVender(r)} className="mr-3 shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-black">Vender</button>
+              )}
+            </div>
           ))}
         </div>
       )}
+
+      {vender && <VentaRapida prod={vender} onClose={() => setVender(null)} onSaved={(t) => { setVender(null); setMsg({ ok: true, t }); cargar(); }} />}
 
       {edit && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/70 sm:items-center sm:justify-center" onClick={() => setEdit(null)}>

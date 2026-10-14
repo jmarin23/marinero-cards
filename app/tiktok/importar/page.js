@@ -19,6 +19,7 @@ export default function ImportarTikTok() {
   const [hdr, setHdr] = useState(0);
   const [map, setMap] = useState({});
   const [filas2, setFilas2] = useState(null);   // filas ya analizadas
+  const [tieneCant, setTieneCant] = useState(false);
   const [grupos, setGrupos] = useState([]);       // piezas de TikTok que suman una venta ya capturada
   const [ventas, setVentas] = useState([]);
   const [msg, setMsg] = useState(null);
@@ -66,6 +67,7 @@ export default function ImportarTikTok() {
     setMsg(null);
     if (mp.id == null || mp.id < 0 || mp.monto == null || mp.monto < 0) return setMsg({ ok: false, t: "Elige las columnas de ID del pedido y Monto liquidado." });
     setTrabajando(true);
+    setTieneCant(mp.cantidad >= 0);
     const datos = m.slice(h + 1).map((r) => ({
       id: aId(r[mp.id]),
       monto: aNumero(r[mp.monto]),
@@ -132,7 +134,7 @@ export default function ImportarTikTok() {
       const fs = filas2.filter((r) => g.filas.includes(r.i));
       const estados = fs.map((r) => r.f.estado);
       const estado = estados.every((e) => e === "Pagado") ? "Pagado" : estados.includes("En espera") ? "En espera" : estados[0];
-      const cambios = { id_pedido_tiktok: fs.map((r) => r.f.id).join(","), estado };
+      const cambios = { id_pedido_tiktok: fs.map((r) => r.f.id).join(","), estado, cantidad: fs.reduce((t, r) => t + (r.f.cantidad || 1), 0) };
       if (!g.venta.fecha) cambios.fecha = fs.map((r) => r.f.fecha).filter(Boolean).sort()[0] || null;
       const { error } = await sb.from("ventas").update(cambios).eq("id_venta", g.venta.id_venta);
       if (error) fallos.push(`${g.venta.id_venta}: ${error.message}`); else act++;
@@ -141,6 +143,7 @@ export default function ImportarTikTok() {
       if (r.grupo === "auto" && r.venta) {
         const cambios = { id_pedido_tiktok: r.f.id, estado: r.f.estado, monto_neto: r.f.monto };
         if (!r.venta.fecha && r.f.fecha) cambios.fecha = r.f.fecha;
+        if (tieneCant && r.f.cantidad > 0) cambios.cantidad = r.f.cantidad;
         const { error } = await sb.from("ventas").update(cambios).eq("id_venta", r.venta.id_venta);
         if (error) fallos.push(`${r.f.id}: ${error.message}`); else act++;
       } else if (r.grupo === "asignar") {
@@ -217,8 +220,8 @@ export default function ImportarTikTok() {
                 <div key={g.n} className="card space-y-2">
                   <div className="flex items-start justify-between gap-3 text-sm">
                     <div className="min-w-0">
-                      <div>{g.filas.length} piezas de TikTok = <b>{g.venta.id_venta}</b> · {g.venta.producto_nombre || "sin producto"}</div>
-                      <div className="text-xs text-white/50">En tu venta: {g.venta.cantidad} pzas. {!g.exacta && "La cantidad no coincide, revisa. "}{g.ambigua && "Pudo ser otra combinación. "}</div>
+                      <div><b>{g.filas.length} pzas</b> de TikTok = {g.venta.id_venta} · {g.venta.producto_nombre || "sin producto"}</div>
+                      <div className="text-xs text-white/50">{Number(g.venta.cantidad) !== g.filas.length ? <span className="text-amber-300">Tenías {g.venta.cantidad} pzas capturadas; al guardar quedan {g.filas.length}. </span> : "Cantidad coincide. "}{g.ambigua && "Pudo ser otra combinación. "}</div>
                     </div>
                     <div className="shrink-0 font-semibold text-emerald-400">{mxn(g.suma)}</div>
                   </div>

@@ -24,7 +24,7 @@ export default async function Tablero() {
     sb.from("v_inventario_categoria").select("*"),
     sb.from("v_alertas_estancados").select("*").order("costo_inventario", { ascending: false }).limit(15),
     sb.from("v_alertas_lotes_perdida").select("*"),
-    sb.from("ventas").select("id_venta", { count: "exact", head: true }).or('estado.in.(Revisar,"Sin empatar"),canal.is.null'),
+    sb.from("ventas").select("id_venta", { count: "exact", head: true }).or('estado.eq.Revisar,canal.is.null,id_producto.is.null,cliente_notas.ilike.*Revisar:*'),
   ]);
   const r = resumen.data || {};
   const num = (x) => Number(x || 0);
@@ -50,7 +50,7 @@ export default async function Tablero() {
 
       {porRevisar.count > 0 && (
         <Link href="/revisar" className="card block border-amber-500/40 text-amber-300 active:bg-white/10">
-          {porRevisar.count} ventas por revisar (sin empatar, sin producto o sin canal) →
+          {porRevisar.count} ventas por corregir (sin producto, sin canal o con aviso) →
         </Link>
       )}
 

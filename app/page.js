@@ -1,3 +1,4 @@
+import PanelPagos from "@/components/PanelPagos";
 import { supabaseServer } from "@/lib/supabase/server";
 import { mxn, pct } from "@/lib/format";
 import Link from "next/link";
@@ -24,7 +25,7 @@ export default async function Tablero() {
     sb.from("v_inventario_categoria").select("*"),
     sb.from("v_alertas_estancados").select("*").order("costo_inventario", { ascending: false }).limit(15),
     sb.from("v_alertas_lotes_perdida").select("*"),
-    sb.from("ventas").select("id_venta", { count: "exact", head: true }).or('estado.eq.Revisar,canal.is.null,id_producto.is.null,cliente_notas.ilike.*Revisar:*'),
+    sb.from("ventas").select("id_venta", { count: "exact", head: true }).or('estado.eq.Revisar,canal.is.null,and(id_producto.is.null,or(id_lote.is.null,id_lote.neq.EXT)),cliente_notas.ilike.*Revisar:*'),
   ]);
   const r = resumen.data || {};
   const num = (x) => Number(x || 0);
@@ -53,6 +54,8 @@ export default async function Tablero() {
           {porRevisar.count} ventas por corregir (sin producto, sin canal o con aviso) →
         </Link>
       )}
+
+      <PanelPagos />
 
       {(estancados.data?.length > 0 || perdidas.data?.length > 0) && (
         <section className="card space-y-3 border-amber-500/40">

@@ -134,7 +134,7 @@ export default function ImportarTikTok() {
       const fs = filas2.filter((r) => g.filas.includes(r.i));
       const estados = fs.map((r) => r.f.estado);
       const estado = estados.every((e) => e === "Pagado") ? "Pagado" : estados.includes("En espera") ? "En espera" : estados[0];
-      const cambios = { id_pedido_tiktok: fs.map((r) => r.f.id).join(","), estado, cantidad: fs.reduce((t, r) => t + (r.f.cantidad || 1), 0) };
+      const cambios = { id_pedido_tiktok: fs.map((r) => r.f.id).join(","), estado };
       if (!g.venta.fecha) cambios.fecha = fs.map((r) => r.f.fecha).filter(Boolean).sort()[0] || null;
       const { error } = await sb.from("ventas").update(cambios).eq("id_venta", g.venta.id_venta);
       if (error) fallos.push(`${g.venta.id_venta}: ${error.message}`); else act++;
@@ -221,7 +221,7 @@ export default function ImportarTikTok() {
                   <div className="flex items-start justify-between gap-3 text-sm">
                     <div className="min-w-0">
                       <div><b>{g.filas.length} pzas</b> de TikTok = {g.venta.id_venta} · {g.venta.producto_nombre || "sin producto"}</div>
-                      <div className="text-xs text-white/50">{Number(g.venta.cantidad) !== g.filas.length ? <span className="text-amber-300">Tenías {g.venta.cantidad} pzas capturadas; al guardar quedan {g.filas.length}. </span> : "Cantidad coincide. "}{g.ambigua && "Pudo ser otra combinación. "}</div>
+                      <div className="text-xs text-white/50">{Number(g.venta.cantidad) !== g.filas.length ? `Tu venta cuenta ${g.venta.cantidad} (por ejemplo una caja vendida en sobres); la cantidad no se cambia. ` : "Cantidad coincide. "}{g.ambigua && "Pudo ser otra combinación. "}</div>
                     </div>
                     <div className="shrink-0 font-semibold text-emerald-400">{mxn(g.suma)}</div>
                   </div>

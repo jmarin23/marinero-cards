@@ -76,8 +76,9 @@ export default function Revisar() {
 
   const conInfo = ventas.map((v) => {
     const { aviso, limpia } = separar(v.cliente_notas);
-    const problema = v.estado === "Revisar" || !v.id_producto || !v.canal || !(Number(v.cantidad) > 0) || !!aviso;
-    return { ...v, aviso, limpia, problema };
+    const suelta = !v.id_producto && v.id_lote === "EXT"; // venta externa suelta: no necesita producto
+    const problema = v.estado === "Revisar" || (!v.id_producto && !suelta) || !v.canal || !(Number(v.cantidad) > 0) || !!aviso;
+    return { ...v, aviso, limpia, problema, suelta };
   });
   const vistas = {
     corregir: conInfo.filter((v) => v.problema),
@@ -91,7 +92,7 @@ export default function Revisar() {
   lista.forEach((v) => {
     const k = v.id_producto || "—";
     let g = grupos.find((x) => x.k === k);
-    if (!g) grupos.push((g = { k, nombre: v.id_producto ? `${v.id_producto} · ${v.productos?.nombre || ""}` : "Sin producto", ventas: [] }));
+    if (!g) grupos.push((g = { k, nombre: v.id_producto ? `${v.id_producto} · ${v.productos?.nombre || ""}` : v.suelta ? "Ventas externas sueltas (sin producto)" : "Sin producto", ventas: [] }));
     g.ventas.push(v);
   });
 
@@ -143,7 +144,7 @@ export default function Revisar() {
                         <button className="shrink-0 underline" onClick={() => guardar(v, { quitarAviso: true })}>Ya lo revisé</button>
                       </div>
                     )}
-                    {!v.id_producto && (
+                    {!v.id_producto && !v.suelta && (
                       <input className="input" list="productos-revisar" placeholder="Producto (escribe para buscar)" value={prodTxt} onChange={(e) => set(v.id_venta, "productoTxt", e.target.value)} />
                     )}
                     <div className="grid grid-cols-[5.5rem_1fr_1fr] items-end gap-2">

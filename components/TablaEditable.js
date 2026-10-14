@@ -24,12 +24,20 @@ export default function TablaEditable({ tabla }) {
     if (error) setMsg({ ok: false, t: error.message });
     // nombres legibles en lugar de P075 / L08
     const [pr, lo] = await Promise.all([
-      sb.from("productos").select("id_producto,nombre").range(0, 4999),
+      sb.from("productos").select("id_producto,id_lote,nombre,socio,quien_puso_costo").range(0, 4999),
       sb.from("lotes").select("id_lote,nombre").range(0, 4999),
     ]);
     const np = Object.fromEntries((pr.data || []).map((x) => [x.id_producto, x.nombre]));
     const nl = Object.fromEntries((lo.data || []).map((x) => [x.id_lote, x.nombre]));
-    const dec = (data || []).map((r) => ({ ...r, _producto: np[r.id_producto] || "", _lote: nl[r.id_lote] || "" }));
+    const porLote = {};
+    (pr.data || []).forEach((x) => { (porLote[x.id_lote] ||= []).push(x); });
+    const unico = (arr) => { const u = [...new Set(arr.filter(Boolean))]; return u.length === 1 ? u[0] : ""; };
+    const dec = (data || []).map((r) => {
+      const ps = porLote[r.id_lote] || [];
+      const socios = [...new Set(ps.map((x) => x.socio).filter((x) => x && x !== "Yo" && x !== "—"))];
+      return { ...r, _producto: np[r.id_producto] || "", _lote: nl[r.id_lote] || "",
+        _socios: socios.join(", "), _socio: unico(ps.map((x) => x.socio)), _quien: unico(ps.map((x) => x.quien_puso_costo)), _nprod: ps.length };
+    });
     setFilas(cfg.filtro ? dec.filter(cfg.filtro) : dec);
     setCargando(false);
   }
@@ -101,9 +109,14 @@ export default function TablaEditable({ tabla }) {
     if (falta) { setMsg({ ok: false, t: `Falta: ${falta.l}` }); return; }
     const payload = limpiar(edit.datos);
     let error;
-    if (edit.nuevo) ({ error } = await sb.from(tablaDB).insert({ [cfg.pk]: await siguienteId(), ...payload }));
+    const idGuardado = edit.nuevo ? await siguienteId() : edit.id;
+    if (edit.nuevo) ({ error } = await sb.from(tablaDB).insert({ [cfg.pk]: idGuardado, ...payload }));
     else ({ error } = await sb.from(tablaDB).update(payload).eq(cfg.pk, edit.id));
     if (error) { setMsg({ ok: false, t: error.message }); return; }
+    if (cfg.despues) {
+      const err2 = await cfg.despues(sb, idGuardado, edit.datos);
+      if (err2) { setMsg({ ok: false, t: err2 }); return; }
+    }
     setEdit(null); setMsg({ ok: true, t: "Guardado" }); cargar();
   }
 

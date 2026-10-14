@@ -36,9 +36,13 @@ export default function TablaEditable({ tabla }) {
     const unico = (arr) => { const u = [...new Set(arr.filter(Boolean))]; return u.length === 1 ? u[0] : ""; };
     const dec = (data || []).map((r) => {
       const ps = porLote[r.id_lote] || [];
+      const pp = (pr.data || []).find((x) => x.id_producto === r.id_producto);
       const socios = [...new Set(ps.map((x) => x.socio).filter((x) => x && x !== "Yo" && x !== "—"))];
       return { ...r, _producto: np[r.id_producto] || "", _lote: nl[r.id_lote] || "",
-        _socios: socios.join(", "), _socio: unico(ps.map((x) => x.socio)), _quien: unico(ps.map((x) => x.quien_puso_costo)), _nprod: ps.length };
+        _socios: socios.join(", "),
+        _socio: tabla === "ventas" ? pp?.socio || "" : unico(ps.map((x) => x.socio)),
+        _quien: tabla === "ventas" ? pp?.quien_puso_costo || "" : unico(ps.map((x) => x.quien_puso_costo)),
+        _alcance: "", _nprod: ps.length };
     });
     setFilas(cfg.filtro ? dec.filter(cfg.filtro) : dec);
     setCargando(false);

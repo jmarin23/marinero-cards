@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
-import { CAMPOS, detectarEncabezado, puntajeEncabezado, esAjuste, adivinarColumnas, aNumero, aFecha, aId, estadoDe, empatar, repararRangos, similitud } from "@/lib/tiktok";
+import { CAMPOS, detectarEncabezado, puntajeEncabezado, esAjuste, adivinarColumnas, aNumero, aFecha, aId, estadoDe, empatar, repararRangos, similitud, agruparVentas, idsDe } from "@/lib/tiktok";
 
 // Flujo en una sola pantalla: subes el archivo y TikTok se lee solo.
 // Lo que ya se reconoce se aplica solo; lo demás lo asignas aquí mismo (producto + cliente) sin ir a Revisar.
@@ -19,6 +19,7 @@ export default function ImportarTikTok() {
   const [hdr, setHdr] = useState(0);
   const [map, setMap] = useState({});
   const [filas2, setFilas2] = useState(null);   // filas ya analizadas
+  const [grupos, setGrupos] = useState([]);       // piezas de TikTok que suman una venta ya capturada
   const [ventas, setVentas] = useState([]);
   const [msg, setMsg] = useState(null);
   const [trabajando, setTrabajando] = useState(false);
@@ -33,7 +34,7 @@ export default function ImportarTikTok() {
   async function leer(e) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setMsg(null); setFilas2(null); setArchivo(f.name);
+    setMsg(null); setFilas2(null); setGrupos([]); setArchivo(f.name);
     try {
       const esCsv = /\.csv$/i.test(f.name);
       const libro = repararRangos(XLSX, esCsv
@@ -89,13 +90,20 @@ export default function ImportarTikTok() {
 
     const filasEmp = empatar(datos, vs).map((r) => {
       if (esAjuste(r.f.tipo)) return { ...r, grupo: "ignorar", venta: null, prodTxt: "", cliente: "" };
+      if (r.accion === "incluida") return { ...r, grupo: "ya", prodTxt: "", cliente: "" };
       if (r.accion === "actualizar" || (r.accion === "empatar" && r.score >= AUTO_MIN)) return { ...r, grupo: "auto", prodTxt: "", cliente: "" };
       // por asignar: sugiere producto por nombre si el reporte lo trae
       const sug = sugerencias(r.f.producto, lista);
       const prodTxt = sug[0] && sug[0].s >= 0.6 ? etiqueta(sug[0].p) : "";
       return { ...r, grupo: "asignar", venta: null, accion: "crear", prodTxt, cliente: "" };
     });
-    setFilas2(filasEmp);
+    // piezas sueltas que suman una venta que ya capturaste como una sola
+    const reclamadas = new Set(filasEmp.filter((r) => r.grupo === "auto").map((r) => r.venta.id_venta));
+    const libresV = vs.filter((v) => !idsDe(v.id_pedido_tiktok).length && (v.canal === "TikTok" || !v.canal) && v.estado !== "Reembolso" && !reclamadas.has(v.id_venta));
+    const gr = agruparVentas(filasEmp.filter((r) => r.grupo === "asignar"), libresV);
+    const enGrupo = new Set(gr.flatMap((g) => g.filas.map((r) => r.i)));
+    setGrupos(gr.map((g, n) => ({ ...g, n, filas: g.filas.map((r) => r.i), resumen: g.filas.map((r) => r.f) })));
+    setFilas2(filasEmp.map((r) => (enGrupo.has(r.i) ? { ...r, grupo: "agrupada" } : r)));
     setTrabajando(false);
   }
 
@@ -106,7 +114,13 @@ export default function ImportarTikTok() {
   }
 
   const edit = (i, cambios) => setFilas2((rs) => rs.map((r) => (r.i === i ? { ...r, ...cambios } : r)));
+  function quitarGrupo(n) {
+    const g = grupos.find((x) => x.n === n);
+    setFilas2((rs) => rs.map((r) => (g.filas.includes(r.i) ? { ...r, grupo: "asignar" } : r)));
+    setGrupos((gs) => gs.filter((x) => x.n !== n));
+  }
   const grupo = (g) => (filas2 || []).filter((r) => r.grupo === g);
+  const yaIncluidas = grupo("ya");
   const autos = grupo("auto"), porAsignar = grupo("asignar"), ignoradas = grupo("ignorar"), omitidas = grupo("omitir");
 
   async function aplicar() {
@@ -114,6 +128,15 @@ export default function ImportarTikTok() {
     let act = 0, nuevas = 0, sinProd = 0; const fallos = [];
     const { data: ids } = await sb.from("ventas").select("id_venta");
     let max = (ids || []).reduce((m, x) => Math.max(m, parseInt(String(x.id_venta).replace(/\D/g, ""), 10) || 0), 0);
+    for (const g of grupos) {
+      const fs = filas2.filter((r) => g.filas.includes(r.i));
+      const estados = fs.map((r) => r.f.estado);
+      const estado = estados.every((e) => e === "Pagado") ? "Pagado" : estados.includes("En espera") ? "En espera" : estados[0];
+      const cambios = { id_pedido_tiktok: fs.map((r) => r.f.id).join(","), estado };
+      if (!g.venta.fecha) cambios.fecha = fs.map((r) => r.f.fecha).filter(Boolean).sort()[0] || null;
+      const { error } = await sb.from("ventas").update(cambios).eq("id_venta", g.venta.id_venta);
+      if (error) fallos.push(`${g.venta.id_venta}: ${error.message}`); else act++;
+    }
     for (const r of filas2) {
       if (r.grupo === "auto" && r.venta) {
         const cambios = { id_pedido_tiktok: r.f.id, estado: r.f.estado, monto_neto: r.f.monto };
@@ -136,11 +159,11 @@ export default function ImportarTikTok() {
     }
     setTrabajando(false);
     setMsg({ ok: fallos.length === 0, t: `Listo: ${act} pagos empatados solos, ${nuevas} ventas nuevas${sinProd ? ` (${sinProd} sin producto, quedaron en Revisar)` : ""}.${fallos.length ? " Fallaron: " + fallos.slice(0, 3).join(" | ") : ""}` });
-    if (!fallos.length) setFilas2(null);
+    if (!fallos.length) { setFilas2(null); setGrupos([]); }
   }
 
   const encabezados = (filas[hdr] || []).map((x, i) => ({ i, t: String(x || `Columna ${i + 1}`) }));
-  const aGuardar = autos.length + porAsignar.length;
+  const aGuardar = autos.length + porAsignar.length + grupos.length;
 
   return (
     <div className="space-y-4">
@@ -182,10 +205,29 @@ export default function ImportarTikTok() {
         <section className="space-y-4">
           <div className="card text-sm">
             <b>{filas2.length}</b> filas en el archivo ·{" "}
-            <span className="text-emerald-400">{autos.length} empatadas solas</span> ·{" "}
+            <span className="text-emerald-400">{autos.length + grupos.reduce((t, g) => t + g.filas.length, 0) + yaIncluidas.length} ya estaban capturadas</span> ·{" "}
             <span className="text-amber-400">{porAsignar.length} por asignar</span>
             {ignoradas.length > 0 && <> · <span className="text-white/40">{ignoradas.length} ajustes ignorados</span></>}
           </div>
+
+          {grupos.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm text-white/60">Piezas de TikTok que ya capturaste como una sola venta</h2>
+              {grupos.map((g) => (
+                <div key={g.n} className="card space-y-2">
+                  <div className="flex items-start justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <div>{g.filas.length} piezas de TikTok = <b>{g.venta.id_venta}</b> · {g.venta.producto_nombre || "sin producto"}</div>
+                      <div className="text-xs text-white/50">En tu venta: {g.venta.cantidad} pzas. {!g.exacta && "La cantidad no coincide, revisa. "}{g.ambigua && "Pudo ser otra combinación. "}</div>
+                    </div>
+                    <div className="shrink-0 font-semibold text-emerald-400">{mxn(g.suma)}</div>
+                  </div>
+                  <div className="text-xs text-white/50">{g.resumen.map((f) => mxn(f.monto)).join(" + ")}</div>
+                  <button className="text-xs text-white/40" onClick={() => quitarGrupo(g.n)}>No es esa venta, asignar una por una</button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {porAsignar.length > 0 && <h2 className="text-sm text-white/60">Por asignar — pon el producto y, si quieres, el cliente</h2>}
           {porAsignar.map((r) => {
@@ -252,7 +294,7 @@ export default function ImportarTikTok() {
 
           <datalist id="productos-tt">{prods.map((p) => <option key={p.id_producto} value={etiqueta(p)} />)}</datalist>
           <div className="sticky bottom-20 rounded-xl border border-white/10 bg-[#171b21] p-4">
-            <button className="btn w-full" onClick={aplicar} disabled={trabajando || aGuardar === 0}>{trabajando ? "Guardando…" : `Guardar ${aGuardar} ventas`}</button>
+            <button className="btn w-full" onClick={aplicar} disabled={trabajando || aGuardar === 0}>{trabajando ? "Guardando…" : `Guardar ${aGuardar} cambios`}</button>
             {porAsignar.some((r) => !prods.find((p) => etiqueta(p) === r.prodTxt)) && (
               <p className="mt-2 text-xs text-white/40">Las que no tengan producto se guardan en &quot;Revisar&quot; para completarlas después.</p>
             )}

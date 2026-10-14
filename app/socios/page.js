@@ -138,12 +138,13 @@ export default function Socios() {
   const Linea = ({ u, tipo, debe, pagado, falta }) => {
     const ok = Math.abs(falta) <= TOL;
     const lleva = falta > TOL;
+    const sinVentas = u.productos.every((p) => n(p.vendidas) === 0); // nada vendido aún: el pago no tiene contra qué compararse
     return (
       <div className="rounded-lg border border-white/10 p-2 text-sm">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-white/70">{tipo === "Costo" ? "Costo que te regresa" : `Ganancia (${Math.round(pct * 100)}%)`}</span>
-          <span className={ok ? "text-emerald-400" : lleva ? "font-semibold text-amber-400" : "text-sky-300"}>
-            {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : `Pagado de más ${mxn(-falta)}`}
+          <span className={ok ? "text-emerald-400" : lleva ? "font-semibold text-amber-400" : sinVentas ? "text-white/50" : "text-sky-300"}>
+            {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : sinVentas ? "Sin ventas capturadas aún" : `Pagado de más ${mxn(-falta)}`}
           </span>
         </div>
         <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-white/50">

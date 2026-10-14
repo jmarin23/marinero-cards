@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
-import { CAMPOS, detectarEncabezado, adivinarColumnas, aNumero, aFecha, aId, estadoDe, empatar } from "@/lib/tiktok";
+import { CAMPOS, detectarEncabezado, puntajeEncabezado, esAjuste, adivinarColumnas, aNumero, aFecha, aId, estadoDe, empatar, repararRangos } from "@/lib/tiktok";
 
 export default function ImportarTikTok() {
   const sb = useMemo(() => supabaseBrowser(), []);
@@ -26,12 +26,14 @@ export default function ImportarTikTok() {
     setMsg(null); setRes(null); setAviso("");
     try {
       const esCsv = /\.csv$/i.test(f.name);
-      const libro = esCsv
+      const libro = repararRangos(XLSX, esCsv
         ? XLSX.read(await f.text(), { type: "string", raw: true })
-        : XLSX.read(await f.arrayBuffer(), { type: "array" });
+        : XLSX.read(await f.arrayBuffer(), { type: "array" }));
       setWb(libro);
+      // la hoja con más columnas reconocidas (en TikTok es "Detalles del pedido")
       const mejor = libro.SheetNames.reduce((a, n) => {
-        const r = XLSX.utils.sheet_to_json(libro.Sheets[n], { header: 1, raw: true }).length;
+        const m = XLSX.utils.sheet_to_json(libro.Sheets[n], { header: 1, raw: true, defval: "" });
+        const r = puntajeEncabezado(m) + (/pedido|order/i.test(n) ? 0.5 : 0);
         return r > a.r ? { n, r } : a;
       }, { n: libro.SheetNames[0], r: -1 }).n;
       cargarHoja(libro, mejor);
@@ -62,8 +64,9 @@ export default function ImportarTikTok() {
       fecha: map.fecha >= 0 ? aFecha(r[map.fecha]) : null,
       producto: map.producto >= 0 ? String(r[map.producto] || "") : "",
       cantidad: map.cantidad >= 0 ? aNumero(r[map.cantidad]) || 1 : 1,
+      tipo: map.tipo >= 0 ? String(r[map.tipo] || "") : "",
       estado: estadoDe(map.estado >= 0 ? r[map.estado] : "", modoEstado === "segun" ? null : modoEstado),
-    })).filter((d) => d.id && d.monto != null);
+    })).map((d) => (esAjuste(d.tipo) ? { ...d, estado: "Reembolso" } : d)).filter((d) => d.id && d.monto != null);
     if (!datos.length) { setTrabajando(false); return setMsg({ ok: false, t: "No encontré filas con ID y monto. Revisa las columnas elegidas." }); }
     if (filas.slice(hdr + 1).some((r) => typeof r[map.id] === "number" && r[map.id] > 1e15))
       setAviso("Ojo: los IDs vienen como número en el archivo y Excel pudo redondearlos. Si el empate falla, descarga el reporte como CSV o con la columna en formato Texto.");
@@ -72,7 +75,7 @@ export default function ImportarTikTok() {
     if (error) { setTrabajando(false); return setMsg({ ok: false, t: error.message }); }
     const vs = (data || []).map((v) => ({ ...v, monto_neto: Number(v.monto_neto), producto_nombre: v.productos?.nombre || "" }));
     setVentas(vs);
-    setRes(empatar(datos, vs));
+    setRes(empatar(datos, vs).map((r) => (esAjuste(r.f.tipo) ? { ...r, accion: "ignorar", venta: null } : r)));
     setTrabajando(false);
   }
 
@@ -170,7 +173,7 @@ export default function ImportarTikTok() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm">{r.f.producto || "(sin producto en el reporte)"}</div>
-                  <div className="truncate text-xs text-white/50">{r.f.id} · {r.f.fecha || "sin fecha"} · {r.f.estado}</div>
+                  <div className="truncate text-xs text-white/50">{r.f.id} · {r.f.fecha || "sin fecha"} · {esAjuste(r.f.tipo) ? r.f.tipo : r.f.estado}</div>
                 </div>
                 <div className="shrink-0 text-amber-400">{mxn(r.f.monto)}</div>
               </div>

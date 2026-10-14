@@ -67,14 +67,14 @@ export default function Socios() {
 
     // resumen por socio: misma fórmula que la vista v_socios
     const S = new Map();
-    const alta = (s) => { if (!S.has(s)) S.set(s, { socio: s, ganancia: 0, parte: 0, cpr: 0, pagado: 0 }); return S.get(s); };
+    const alta = (s) => { if (!S.has(s)) S.set(s, { socio: s, ganancia: 0, parte: 0, cpr: 0, pagado: 0, pagCosto: 0, pagGan: 0 }); return S.get(s); };
     for (const p of prodSocios) {
       const s = alta(p.socio);
       s.ganancia += n(p.ganancia_real);
       s.parte += n(p.ganancia_real) * pct;
       if (p.quien_puso_costo === "Socio") s.cpr += n(p.costo_total) - n(p.costo_inventario);
     }
-    for (const g of pagos) alta(g.socio).pagado += n(g.monto);
+    for (const g of pagos) { const s = alta(g.socio); s.pagado += n(g.monto); if (g.tipo === "Costo") s.pagCosto += n(g.monto); else s.pagGan += n(g.monto); }
     const resumen = [...S.values()].map((s) => ({ ...s, debo: s.cpr + s.parte - s.pagado })).sort((a, b) => b.debo - a.debo);
 
     // avisos de datos que no cuadran
@@ -198,10 +198,17 @@ export default function Socios() {
                 {s.debo > TOL ? `Debo ${mxn(s.debo)}` : s.debo < -TOL ? `Pagado de más ${mxn(-s.debo)}` : "Al corriente"}
               </span>
             </div>
-            <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-white/50">
-              <span>Su parte<br /><b className="text-white/80">{mxn(s.parte)}</b></span>
-              <span>Costo por regresar<br /><b className="text-white/80">{mxn(s.cpr)}</b></span>
-              <span>Pagado<br /><b className="text-white/80">{mxn(s.pagado)}</b></span>
+            <div className="mt-2 space-y-1 text-sm">
+              <div className="flex items-baseline justify-between">
+                <span className="text-white/70">Utilidad que le toca</span>
+                <span><b>{mxn(s.parte)}</b> <span className="text-xs text-white/50">· pagado {mxn(s.pagGan)} · falta </span><b className="text-amber-400">{mxn(s.parte - s.pagGan)}</b></span>
+              </div>
+              {(Math.abs(s.cpr) > TOL || s.pagCosto > TOL) && (
+                <div className="flex items-baseline justify-between">
+                  <span className="text-white/70">Costo que puso él</span>
+                  <span><b>{mxn(s.cpr)}</b> <span className="text-xs text-white/50">· pagado {mxn(s.pagCosto)} · falta </span><b className="text-amber-400">{mxn(s.cpr - s.pagCosto)}</b></span>
+                </div>
+              )}
             </div>
           </div>
         ))}

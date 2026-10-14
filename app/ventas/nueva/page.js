@@ -14,6 +14,10 @@ export default function NuevaVenta() {
   const [cantidad, setCantidad] = useState(1);
   const [monto, setMonto] = useState("");
   const [notas, setNotas] = useState("");
+  const hoy = () => new Date().toISOString().slice(0, 10);
+  const [fecha, setFecha] = useState(hoy());
+  const [estado, setEstado] = useState("En espera");
+  const [montoAuto, setMontoAuto] = useState(true); // el monto se calcula solo (reventa x piezas) hasta que lo escribes tú
   const [msg, setMsg] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -39,19 +43,19 @@ export default function NuevaVenta() {
     const id = "V" + String(n).padStart(4, "0");
     const { error } = await sb.from("ventas").insert({
       id_venta: id,
-      fecha: new Date().toISOString().slice(0, 10),
+      fecha: fecha || null,
       id_producto: prod.id_producto,
       id_lote: prod.id_lote,
       canal,
       cantidad: Number(cantidad),
       monto_neto: Number(monto),
-      estado: canal === "TikTok" ? "En espera" : "Cobrado",
+      estado,
       cliente_notas: notas || null,
     });
     setGuardando(false);
     if (error) { setMsg({ ok: false, t: "No se guardó: " + error.message }); return; }
     setMsg({ ok: true, t: `Venta ${id} guardada: ${prod.nombre}` });
-    setProd(null); setMonto(""); setCantidad(1); setNotas(""); setQ("");
+    setProd(null); setMonto(""); setCantidad(1); setNotas(""); setQ(""); setMontoAuto(true);
     cargar();
   }
 
@@ -67,7 +71,7 @@ export default function NuevaVenta() {
         <section className="space-y-2">
           <input className="input" placeholder="Buscar producto…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
           {filtrados.map((p) => (
-            <button key={p.id_producto} onClick={() => { setProd(p); if (p.reventa) setMonto(String(p.reventa)); }}
+            <button key={p.id_producto} onClick={() => { setProd(p); setMontoAuto(true); setCantidad(1); setMonto(p.reventa ? String(p.reventa) : ""); }}
               className="card flex w-full items-center justify-between gap-3 text-left active:bg-white/10">
               <span className="min-w-0">
                 <span className="block truncate">{p.nombre}</span>
@@ -90,17 +94,32 @@ export default function NuevaVenta() {
 
           <div className="grid grid-cols-3 gap-2">
             {CANALES.map((c) => (
-              <button key={c} onClick={() => setCanal(c)}
+              <button key={c} onClick={() => { setCanal(c); setEstado(c === "TikTok" ? "En espera" : "Cobrado"); }}
                 className={`rounded-lg border py-3 text-sm ${canal === c ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15"}`}>{c}</button>
             ))}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="text-sm text-white/60">Cantidad
-              <input className="input mt-1" type="number" min="1" max={Number(prod.inventario)} value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
+            <label className="text-sm text-white/60">Piezas vendidas
+              <input className="input mt-1 text-lg font-semibold" type="number" min="1" max={Number(prod.inventario)} value={cantidad}
+                onChange={(e) => { setCantidad(e.target.value); if (montoAuto && prod.reventa) setMonto(String(Math.round(Number(prod.reventa) * Number(e.target.value || 0) * 100) / 100)); }} />
             </label>
-            <label className="text-sm text-white/60">Monto neto (MXN)
-              <input className="input mt-1" type="number" inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="lo que te queda" />
+            <label className="text-sm text-white/60">Total que te queda (MXN)
+              <input className="input mt-1 text-lg font-semibold" type="number" inputMode="decimal" value={monto} onChange={(e) => { setMonto(e.target.value); setMontoAuto(false); }} placeholder="lo que te queda" />
+            </label>
+          </div>
+          {Number(cantidad) > 1 && monto && (
+            <p className="text-sm text-white/60">{Number(cantidad)} pzas · {mxn(Number(monto) / Number(cantidad))} c/u</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm text-white/60">Fecha de la venta
+              <input className="input mt-1" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </label>
+            <label className="text-sm text-white/60">Estado
+              <select className="input mt-1" value={estado} onChange={(e) => setEstado(e.target.value)}>
+                {["En espera", "Pagado", "Cobrado"].map((x) => <option key={x}>{x}</option>)}
+              </select>
             </label>
           </div>
 

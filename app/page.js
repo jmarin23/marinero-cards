@@ -29,7 +29,7 @@ export default async function Tablero() {
 
   const dataLotes = (lotes.data || [])
     .filter((l) => num(l.costo) > 0)
-    .map((l) => ({ nombre: l.nombre.slice(0, 22), ganancia: num(l.ganancia_real) }));
+    .map((l) => ({ nombre: l.nombre.length > 28 ? l.nombre.slice(0, 27) + "…" : l.nombre, ganancia: num(l.ganancia_real) }));
   const dataCanales = (canales.data || []).map((c) => ({ canal: c.canal, monto: num(c.monto) }));
   const dataMeses = (meses.data || []).map((m) => ({ mes: m.mes, monto: num(m.monto) }));
   const dataCats = (cats.data || []).map((c) => ({ categoria: c.categoria, costo: num(c.costo) }));

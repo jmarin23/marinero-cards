@@ -22,7 +22,15 @@ export default function TablaEditable({ tabla }) {
     let qy = sb.from(cfg.vista).select("*").order(cfg.orden, { ascending: !cfg.desc }).range(0, 4999);
     const { data, error } = await qy;
     if (error) setMsg({ ok: false, t: error.message });
-    setFilas(cfg.filtro ? (data || []).filter(cfg.filtro) : data || []);
+    // nombres legibles en lugar de P075 / L08
+    const [pr, lo] = await Promise.all([
+      sb.from("productos").select("id_producto,nombre").range(0, 4999),
+      sb.from("lotes").select("id_lote,nombre").range(0, 4999),
+    ]);
+    const np = Object.fromEntries((pr.data || []).map((x) => [x.id_producto, x.nombre]));
+    const nl = Object.fromEntries((lo.data || []).map((x) => [x.id_lote, x.nombre]));
+    const dec = (data || []).map((r) => ({ ...r, _producto: np[r.id_producto] || "", _lote: nl[r.id_lote] || "" }));
+    setFilas(cfg.filtro ? dec.filter(cfg.filtro) : dec);
     setCargando(false);
   }
 
@@ -164,7 +172,7 @@ export default function TablaEditable({ tabla }) {
           {visibles.map((r) => (
             <button key={r[cfg.pk]} onClick={() => abrir(r)} className="card flex w-full items-center justify-between gap-3 text-left active:bg-white/10">
               <span className="min-w-0">
-                <span className="block truncate">{r[cfg.titulo_campo] || "(sin nombre)"}</span>
+                <span className="block truncate">{(cfg.titulo_fn ? cfg.titulo_fn(r) : r[cfg.titulo_campo]) || "(sin nombre)"}</span>
                 <span className="block truncate text-xs text-white/50">{cfg.sub(r)}</span>
               </span>
               <span className="shrink-0 text-sm">{derecha(r)}</span>

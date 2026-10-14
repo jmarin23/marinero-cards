@@ -2,8 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
+import { TABLAS } from "@/lib/tablas";
 
-export default function TablaEditable({ cfg, tabla }) {
+export default function TablaEditable({ tabla }) {
+  const cfg = TABLAS[tabla];
   const sb = useMemo(() => supabaseBrowser(), []);
   const [filas, setFilas] = useState([]);
   const [q, setQ] = useState("");

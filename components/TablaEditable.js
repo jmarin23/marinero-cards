@@ -6,6 +6,8 @@ import { TABLAS } from "@/lib/tablas";
 
 export default function TablaEditable({ tabla }) {
   const cfg = TABLAS[tabla];
+  const tablaDB = cfg.tabla || tabla;
+  const [chips, setChips] = useState({});
   const sb = useMemo(() => supabaseBrowser(), []);
   const [filas, setFilas] = useState([]);
   const [q, setQ] = useState("");
@@ -20,7 +22,7 @@ export default function TablaEditable({ tabla }) {
     let qy = sb.from(cfg.vista).select("*").order(cfg.orden, { ascending: !cfg.desc }).range(0, 4999);
     const { data, error } = await qy;
     if (error) setMsg({ ok: false, t: error.message });
-    setFilas(data || []);
+    setFilas(cfg.filtro ? (data || []).filter(cfg.filtro) : data || []);
     setCargando(false);
   }
 
@@ -45,12 +47,15 @@ export default function TablaEditable({ tabla }) {
 
   const visibles = useMemo(() => {
     const t = q.trim().toLowerCase();
-    if (!t) return filas;
-    return filas.filter((r) => JSON.stringify(r).toLowerCase().includes(t));
-  }, [q, filas]);
+    return filas.filter((r) =>
+      Object.entries(chips).every(([k, v]) => !v || String(r[k] ?? "") === v) &&
+      (!t || JSON.stringify(r).toLowerCase().includes(t)));
+  }, [q, filas, chips]);
+  const resumen = cfg.resumen ? cfg.resumen(visibles) : null;
 
-  function siguienteId() {
-    const max = filas.reduce((m, r) => {
+  async function siguienteId() {
+    const { data } = await sb.from(tablaDB).select(cfg.pk).range(0, 4999);
+    const max = (data || []).reduce((m, r) => {
       const n = parseInt(String(r[cfg.pk]).replace(/\D/g, ""), 10);
       return Number.isFinite(n) && n > m ? n : m;
     }, 0);
@@ -88,14 +93,14 @@ export default function TablaEditable({ tabla }) {
     if (falta) { setMsg({ ok: false, t: `Falta: ${falta.l}` }); return; }
     const payload = limpiar(edit.datos);
     let error;
-    if (edit.nuevo) ({ error } = await sb.from(tabla).insert({ [cfg.pk]: siguienteId(), ...payload }));
-    else ({ error } = await sb.from(tabla).update(payload).eq(cfg.pk, edit.id));
+    if (edit.nuevo) ({ error } = await sb.from(tablaDB).insert({ [cfg.pk]: await siguienteId(), ...payload }));
+    else ({ error } = await sb.from(tablaDB).update(payload).eq(cfg.pk, edit.id));
     if (error) { setMsg({ ok: false, t: error.message }); return; }
     setEdit(null); setMsg({ ok: true, t: "Guardado" }); cargar();
   }
 
   async function eliminar() {
-    const { error } = await sb.from(tabla).delete().eq(cfg.pk, edit.id);
+    const { error } = await sb.from(tablaDB).delete().eq(cfg.pk, edit.id);
     if (error) { setMsg({ ok: false, t: "No se pudo borrar: " + error.message }); setBorrar(false); return; }
     setEdit(null); setMsg({ ok: true, t: "Borrado" }); cargar();
   }
@@ -134,6 +139,24 @@ export default function TablaEditable({ tabla }) {
       </div>
       <input className="input" placeholder="Buscar…" value={q} onChange={(e) => setQ(e.target.value)} />
       {msg && !edit && <div className={`card text-sm ${msg.ok ? "text-emerald-300" : "text-red-300"}`}>{msg.t}</div>}
+      {resumen && (
+        <div className="grid grid-cols-2 gap-2">
+          {resumen.map((x) => (
+            <div key={x.l} className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">{x.l}</div><div className="font-bold text-amber-400">{x.v}</div></div>
+          ))}
+        </div>
+      )}
+      {(cfg.chips || []).map((k) => {
+        const vals = [...new Set(filas.map((r) => r[k]).filter(Boolean))].sort();
+        return (
+          <div key={k} className="flex gap-2 overflow-x-auto pb-1">
+            {["", ...vals].map((v) => (
+              <button key={v || "todos"} onClick={() => setChips({ ...chips, [k]: v })}
+                className={`shrink-0 rounded-full border px-3 py-1 text-sm ${(chips[k] || "") === v ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{v || `Todos (${k})`}</button>
+            ))}
+          </div>
+        );
+      })}
       <p className="text-xs text-white/40">{visibles.length} registros · toca uno para editarlo</p>
 
       {cargando ? <p className="text-white/50">Cargando…</p> : (

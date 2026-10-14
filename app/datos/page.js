@@ -8,7 +8,8 @@ export default function Datos() {
       <p className="text-sm text-white/50">Aquí puedes ver y editar todo: nombres, montos, fechas, estados. También agregar y borrar.</p>
       <div className="space-y-2">
         <Link href="/tiktok/importar" className="card block border-amber-500/40 text-amber-300 active:bg-white/10">Importar TikTok (subir reporte de pedidos) →</Link>
-        {Object.entries(TABLAS).map(([k, c]) => (
+        <Link href="/revisar" className="card block active:bg-white/10">Revisar ventas (sin empatar / sin producto) →</Link>
+        {Object.entries(TABLAS).filter(([k]) => k !== "inventario").map(([k, c]) => (
           <Link key={k} href={`/datos/${k}`} className="card block active:bg-white/10">{c.titulo}</Link>
         ))}
       </div>

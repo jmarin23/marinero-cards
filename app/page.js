@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { mxn, pct } from "@/lib/format";
+import Link from "next/link";
 import Charts from "@/components/Charts";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ function Stat({ label, value, tone }) {
 
 export default async function Tablero() {
   const sb = supabaseServer();
-  const [resumen, lotes, canales, meses, cats, estancados, perdidas] = await Promise.all([
+  const [resumen, lotes, canales, meses, cats, estancados, perdidas, porRevisar] = await Promise.all([
     sb.from("v_resumen").select("*").single(),
     sb.from("v_lotes").select("*"),
     sb.from("v_ventas_canal").select("*"),
@@ -23,6 +24,7 @@ export default async function Tablero() {
     sb.from("v_inventario_categoria").select("*"),
     sb.from("v_alertas_estancados").select("*").order("costo_inventario", { ascending: false }).limit(15),
     sb.from("v_alertas_lotes_perdida").select("*"),
+    sb.from("ventas").select("id_venta", { count: "exact", head: true }).or('estado.in.(Revisar,"Sin empatar"),canal.is.null'),
   ]);
   const r = resumen.data || {};
   const num = (x) => Number(x || 0);
@@ -45,6 +47,12 @@ export default async function Tablero() {
         <Stat label="Posición" value={mxn(r.posicion)} tone={num(r.posicion) >= 0 ? "good" : "bad"} />
         <div className="col-span-2"><Stat label="ROI" value={pct(r.roi)} tone={num(r.roi) >= 0 ? "good" : "bad"} /></div>
       </div>
+
+      {porRevisar.count > 0 && (
+        <Link href="/revisar" className="card block border-amber-500/40 text-amber-300 active:bg-white/10">
+          {porRevisar.count} ventas por revisar (sin empatar, sin producto o sin canal) →
+        </Link>
+      )}
 
       {(estancados.data?.length > 0 || perdidas.data?.length > 0) && (
         <section className="card space-y-3 border-amber-500/40">

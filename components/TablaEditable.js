@@ -68,12 +68,13 @@ export default function TablaEditable({ tabla }) {
   function abrir(r) {
     const d = {};
     cfg.campos.forEach((c) => { d[c.k] = r[c.k] ?? ""; });
+    if (cfg.campos.some((c) => c.k === "_unitario")) d._unitario = unitario(d.costo_total, d.cantidad);
     setEdit({ nuevo: false, id: r[cfg.pk], datos: d }); setBorrar(false); setMsg(null);
   }
 
   function limpiar(d) {
     const o = {};
-    cfg.campos.forEach((c) => {
+    cfg.campos.filter((c) => !c.virtual).forEach((c) => {
       let v = d[c.k];
       if (v === "" || v === undefined) v = null;
       else if (c.t === "number") v = Number(v);
@@ -99,7 +100,23 @@ export default function TablaEditable({ tabla }) {
     setEdit(null); setMsg({ ok: true, t: "Borrado" }); cargar();
   }
 
-  const set = (k, v) => setEdit((e) => ({ ...e, datos: { ...e.datos, [k]: v } }));
+  function unitario(total, cant) {
+    const t = Number(total), c = Number(cant);
+    if (!t || !c) return "";
+    return String(Math.round((t / c) * 10000) / 10000);
+  }
+  const set = (k, v) => setEdit((e) => {
+    const d = { ...e.datos, [k]: v };
+    if (cfg.campos.some((c) => c.k === "_unitario")) {
+      if (k === "_unitario") {
+        const t = Number(v) * Number(d.cantidad);
+        d.costo_total = v === "" || !Number.isFinite(t) ? "" : String(Math.round(t * 100) / 100);
+      } else if (k === "costo_total" || k === "cantidad") {
+        d._unitario = unitario(d.costo_total, d.cantidad);
+      }
+    }
+    return { ...e, datos: d };
+  });
 
   function derecha(r) {
     const d = cfg.derecha(r);

@@ -129,6 +129,12 @@ export default function Socios() {
     setOcupado(null);
     if (error) setMsg(error.message); else cargar();
   }
+  async function borrarTodos() {
+    if (!confirm(`¿Borrar los ${pagos.length} pagos registrados? Socios queda en cero y no se puede deshacer.`)) return;
+    setMsg(null);
+    const { error } = await sb.from("pagos_socios").delete().neq("id_pago", "");
+    if (error) setMsg(error.message); else cargar();
+  }
   async function guardarPct(v) {
     setPct(v);
     await sb.from("config").update({ valor: v }).eq("clave", "porcentaje_socio");
@@ -245,6 +251,12 @@ export default function Socios() {
           Lo que corresponde se calcula con las ventas capturadas. Si capturas una venta después de haber pagado, solo te muestra lo que falta; nada se duplica.
         </p>
       </section>
+
+      {pagos.length > 0 && (
+        <button onClick={borrarTodos} className="w-full rounded-lg border border-red-500/50 py-3 text-sm text-red-300 active:bg-red-500/10">
+          Borrar todos los pagos ({pagos.length})
+        </button>
+      )}
     </div>
   );
 }

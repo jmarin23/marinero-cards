@@ -37,15 +37,15 @@ export default function Socios() {
   // ---- unidades de cobro: un lote completo (si le pagaste por lote) o un producto ----
   const { unidades, resumen, avisos } = useMemo(() => {
     const prodSocios = prods.filter((p) => esSocio(p.socio));
-    const lotePagado = new Set(pagos.filter((x) => x.id_lote && !x.id_producto).map((x) => `${x.socio}|${x.id_lote}`));
-    const claveDe = (socio, idLote, idProd) => (lotePagado.has(`${socio}|${idLote}`) ? `L|${socio}|${idLote}` : `P|${idProd}`);
+    // siempre por lote (un renglón por lote y socio); solo si un producto no tiene lote se cobra solo
+    const claveDe = (socio, idLote, idProd) => (idLote ? `L|${socio}|${idLote}` : `P|${idProd}`);
 
     const U = new Map();
     for (const p of prodSocios) {
       const k = claveDe(p.socio, p.id_lote, p.id_producto);
       if (!U.has(k)) U.set(k, {
         k, socio: p.socio, lote: k.startsWith("L|") ? p.id_lote : null, idProducto: k.startsWith("P|") ? p.id_producto : null,
-        nombre: k.startsWith("L|") ? `${lotes[p.id_lote] || p.id_lote} (lote completo)` : p.nombre,
+        nombre: k.startsWith("L|") ? (lotes[p.id_lote] || p.id_lote) : p.nombre,
         productos: [], debeCosto: 0, parte: 0, pagCosto: 0, pagGan: 0, pagos: [],
       });
       const u = U.get(k);

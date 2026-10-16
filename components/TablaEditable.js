@@ -68,10 +68,14 @@ export default function TablaEditable({ tabla }) {
   }, [tabla]);
 
   const visibles = useMemo(() => {
-    const t = q.trim().toLowerCase();
+    // busca solo en lo que se ve en la tarjeta (sin los datos internos del socio del lote), sin acentos y con todas las palabras
+    const norm = (x) => String(x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const palabras = norm(q).split(/\s+/).filter(Boolean);
+    const INTERNOS = new Set(["_socios", "_socio", "_quien", "_alcance", "_nprod"]);
+    const pajar = (r) => norm([...Object.entries(r).filter(([k]) => !INTERNOS.has(k)).map(([, v]) => v), cfg.sub ? cfg.sub(r) : ""].join(" "));
     return filas.filter((r) =>
       Object.entries(chips).every(([k, v]) => !v || String(r[k] ?? "") === v) &&
-      (!t || JSON.stringify(r).toLowerCase().includes(t)));
+      (!palabras.length || (() => { const h = pajar(r); return palabras.every((w) => h.includes(w)); })()));
   }, [q, filas, chips]);
   const resumen = cfg.resumen ? cfg.resumen(visibles) : null;
 

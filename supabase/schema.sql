@@ -41,7 +41,7 @@ create table if not exists ventas (
   cantidad numeric not null default 1,
   monto_neto numeric not null default 0,
   estado text not null default 'Sin empatar'
-    check (estado in ('Sin empatar','En espera','Pagado','Cobrado','Reembolso','Revisar')),
+    check (estado in ('Sin empatar','En espera','Pagado','Reembolso','Revisar')),
   cliente_notas text,
   id_pedido_tiktok text,
   creado_en timestamptz default now()

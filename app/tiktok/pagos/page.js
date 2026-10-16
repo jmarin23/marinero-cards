@@ -69,7 +69,7 @@ export default function ConciliarPagos() {
     for (const g of elegidos) {
       const fechas = g.idPago.split(",").map((id) => pagoPorId[id]?.fecha).filter(Boolean).sort();
       const cambios = {
-        estado: g.venta.estado === "Cobrado" ? "Cobrado" : "Pagado",
+        estado: "Pagado",
         id_pedido_tiktok: g.pedidos.map((p) => p.id).join(","),
         id_pago_tiktok: g.idPago || null,
         fecha_pago: fechas.pop() || g.fechaCta || null,

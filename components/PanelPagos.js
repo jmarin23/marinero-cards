@@ -26,7 +26,7 @@ function periodos() {
 // Tarjetas parecidas a las de TikTok Shop: cada una agrupa ventas por estado
 const TARJETAS = [
   { k: "neto", t: "Ingresos netos", nota: "Todo lo vendido en el periodo", estados: null },
-  { k: "pagado", t: "Pagado", nota: "Pagado y cobrado", estados: ["Pagado", "Cobrado"] },
+  { k: "pagado", t: "Pagado", nota: "Ya te llegó el dinero", estados: ["Pagado", "Cobrado"] },
   { k: "espera", t: "En espera", nota: "TikTok ya lo tiene, aún no te paga", estados: ["En espera"] },
   { k: "sin", t: "Sin empatar", nota: "Falta que entre en un reporte", estados: ["Sin empatar", "Revisar"] },
 ];

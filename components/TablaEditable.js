@@ -218,10 +218,16 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
             <h2 className="mb-4 text-lg font-semibold">{edit.nuevo ? "Nuevo registro" : `Editar ${edit.id}`}</h2>
             <div className="space-y-3">
               {cfg.campos.map((c) => (
-                c.t === "select" ? (
+                c.lista === "socios" ? (
                   <div key={c.k} className="block text-sm text-white/60">{c.l}{c.req && " *"}
                     <Combo value={edit.datos[c.k] ?? ""} onChange={(v) => set(c.k, v)}
-                      options={Array.isArray(c.opciones) ? c.opciones.map((o) => ({ v: o, l: o })) : opciones[c.k] || []} />
+                      vacio={c.virtual ? "— no cambiar —" : "— sin socio —"}
+                      options={[...new Set(["Yo", ...socios, edit.datos[c.k]].filter(Boolean))].map((x) => ({ v: x, l: x }))} />
+                  </div>
+                ) : c.t === "select" ? (
+                  <div key={c.k} className="block text-sm text-white/60">{c.l}{c.req && " *"}
+                    <Combo value={edit.datos[c.k] ?? ""} onChange={(v) => set(c.k, v)}
+                      options={Array.isArray(c.opciones) ? [...new Set([...c.opciones, edit.datos[c.k]].filter(Boolean))].map((o) => ({ v: o, l: o })) : opciones[c.k] || []} />
                   </div>
                 ) : (
                 <label key={c.k} className="block text-sm text-white/60">{c.l}{c.req && " *"}

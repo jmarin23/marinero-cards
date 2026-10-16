@@ -15,7 +15,7 @@ export default function VentaRapida({ prod, onClose, onSaved }) {
   const [monto, setMonto] = useState(reventa ? String(reventa) : "");
   const [auto, setAuto] = useState(true);
   const [canal, setCanal] = useState(() => leer("canalVenta", "TikTok"));
-  const [estado, setEstado] = useState(() => (leer("canalVenta", "TikTok") === "TikTok" ? "En espera" : "Cobrado"));
+  const [estado, setEstado] = useState(() => (leer("canalVenta", "TikTok") === "TikTok" ? "En espera" : "Pagado"));
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [cliente, setCliente] = useState("");
   const [err, setErr] = useState("");
@@ -28,7 +28,7 @@ export default function VentaRapida({ prod, onClose, onSaved }) {
     if (auto && reventa) setMonto(String(Math.round(reventa * v * 100) / 100));
   }
   function elegirCanal(c) {
-    setCanal(c); setEstado(c === "TikTok" ? "En espera" : "Cobrado"); guardarLS("canalVenta", c);
+    setCanal(c); setEstado(c === "TikTok" ? "En espera" : "Pagado"); guardarLS("canalVenta", c);
   }
 
   async function vender() {
@@ -85,7 +85,7 @@ export default function VentaRapida({ prod, onClose, onSaved }) {
             <div className="grid grid-cols-2 gap-2">
               <input className="input" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
               <select className="input" value={estado} onChange={(e) => setEstado(e.target.value)}>
-                {["En espera", "Pagado", "Cobrado"].map((x) => <option key={x}>{x}</option>)}
+                {["En espera", "Pagado"].map((x) => <option key={x}>{x}</option>)}
               </select>
             </div>
             <input className="input" placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} />

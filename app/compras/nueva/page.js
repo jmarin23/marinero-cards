@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { listaSocios } from "@/lib/socios";
+import Combo from "@/components/Combo";
 import { mxn } from "@/lib/format";
 
 const CATEGORIAS = ["Pokémon", "MLB", "NFL", "NBA", "Fut", "Costo extra", "Otro"];
@@ -157,7 +158,8 @@ export default function NuevaCompra() {
               <input className="input" type="number" min="1" inputMode="numeric" placeholder="Cantidad" value={l.cantidad} onChange={(e) => setL(i, "cantidad", e.target.value)} />
               <input className="input" type="number" step="any" inputMode="decimal" placeholder={`Precio c/u (${moneda})`} value={l.precio} onChange={(e) => setL(i, "precio", e.target.value)} />
               <input className="input" type="number" step="any" inputMode="decimal" placeholder="Reventa c/u (MXN)" value={l.reventa} onChange={(e) => setL(i, "reventa", e.target.value)} />
-              <input className="input" list="socios-compra" placeholder="Socio (o Yo)" value={l.socio} onChange={(e) => setL(i, "socio", e.target.value)} />
+              <Combo value={l.socio} onChange={(v) => setL(i, "socio", v || "Yo")} vacio="Yo" placeholder="Socio (o Yo)"
+                options={[...new Set(["Yo", ...socios, l.socio].filter(Boolean))].map((x) => ({ v: x, l: x }))} />
               <select className="input" value={l.quien} onChange={(e) => setL(i, "quien", e.target.value)}>
                 <option value="Yo">Yo puse el costo</option>
                 <option value="Socio">Socio puso el costo</option>
@@ -169,7 +171,6 @@ export default function NuevaCompra() {
             </div>
           </div>
         ))}
-        <datalist id="socios-compra">{socios.map((s) => <option key={s} value={s} />)}</datalist>
         <button className="w-full rounded-lg border border-dashed border-white/25 py-3 text-sm text-white/70" onClick={() => setLineas((ls) => [...ls, linea()])}>+ Agregar otro producto</button>
       </section>
 

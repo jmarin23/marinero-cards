@@ -4,7 +4,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 
 const CANALES = ["TikTok", "Externa", "Mercado Libre"];
-const ESTADOS = ["Sin empatar", "En espera", "Pagado", "Cobrado", "Reembolso", "Revisar"];
+const ESTADOS = ["Sin empatar", "En espera", "Pagado", "Reembolso", "Revisar"];
 
 // Las notas que venían del Excel mezclan el cliente con avisos tipo "Revisar: 4 montos vs 3 vendidas".
 // Aquí se separan: el aviso sale como etiqueta y la nota queda limpia.
@@ -171,7 +171,6 @@ export default function Revisar() {
                     <div className="flex flex-wrap items-center gap-2">
                       <button className="btn !py-2 text-sm" disabled={!sucia} onClick={() => guardar(v)}>Guardar</button>
                       {v.estado !== "Pagado" && <button className="rounded-lg border border-emerald-500/50 px-3 py-2 text-sm text-emerald-300" onClick={() => guardar(v, { estado: "Pagado" })}>Pagado</button>}
-                      {v.estado !== "Cobrado" && <button className="rounded-lg border border-white/20 px-3 py-2 text-sm text-white/70" onClick={() => guardar(v, { estado: "Cobrado" })}>Cobrado</button>}
                     </div>
                   </div>
                 );

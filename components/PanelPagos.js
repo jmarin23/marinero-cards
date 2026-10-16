@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { notaLimpia } from "@/lib/tablas";
+import { useRefrescar } from "@/lib/useRefrescar";
 
 const fmt = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 const pad = (n) => String(n).padStart(2, "0");
@@ -42,10 +43,10 @@ export default function PanelPagos() {
   const [canal, setCanal] = useState("");
   const [max, setMax] = useState(12);
 
-  useEffect(() => {
-    sb.from("ventas").select("id_venta,fecha,monto_neto,cantidad,estado,canal,id_producto,cliente_notas,productos(nombre)").range(0, 4999)
-      .then(({ data }) => setVentas(data || []));
-  }, [sb]);
+  const cargar = () => sb.from("ventas").select("id_venta,fecha,monto_neto,cantidad,estado,canal,id_producto,cliente_notas,productos(nombre)").range(0, 4999)
+    .then(({ data }) => setVentas(data || []));
+  useEffect(() => { cargar(); }, [sb]);
+  useRefrescar(cargar);
 
   const rango = per === "rango" ? { a: desde, b: hasta } : P[per];
   const enPeriodo = (ventas || []).filter((v) => {

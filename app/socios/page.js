@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { PREFIJO_PCT } from "@/lib/socios";
+import { useRefrescar } from "@/lib/useRefrescar";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -22,14 +23,17 @@ export default function Socios() {
   const [alCorriente, setAlCorriente] = useState(false);
   const [msg, setMsg] = useState(null);
   const [ocupado, setOcupado] = useState(null);
+  const [hora, setHora] = useState(null);
 
   async function cargar() {
     const [p, g, c, l] = await Promise.all([
       sb.from("v_productos").select("id_producto,id_lote,nombre,socio,quien_puso_costo,cantidad,vendidas,costo_total,costo_inventario,ganancia_real").range(0, 4999),
       sb.from("pagos_socios").select("*").range(0, 4999),
-      sb.from("config").select("clave,valor").or("clave.eq.porcentaje_socio,clave.like.pct:*"),
+      sb.from("config").select("clave,valor"),
       sb.from("lotes").select("id_lote,nombre").range(0, 4999),
     ]);
+    const fallo = [p, g, c, l].find((x) => x.error);
+    if (fallo) setMsg(`No pude leer los datos: ${fallo.error.message}`);
     setProds(p.data || []); setPagos(g.data || []);
     setLotes(Object.fromEntries((l.data || []).map((x) => [x.id_lote, x.nombre])));
     const filasCfg = c.data || [];
@@ -38,8 +42,10 @@ export default function Socios() {
     const propios = filasCfg.filter((x) => x.clave.startsWith(PREFIJO_PCT));
     setPcts(Object.fromEntries(propios.map((x) => [x.clave.slice(PREFIJO_PCT.length), n(x.valor)])));
     setRegistrados(propios.map((x) => x.clave.slice(PREFIJO_PCT.length)));
+    setHora(new Date());
   }
   useEffect(() => { cargar(); }, []);
+  useRefrescar(cargar);
 
   const esSocio = (s) => s && !["Yo", "—", ""].includes(s);
   const pctDe = (s) => (pcts[s] !== undefined ? pcts[s] : pctBase);
@@ -199,6 +205,10 @@ export default function Socios() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Socios</h1>
         <Link href="/datos/pagos_socios" className="text-sm text-amber-400">Editar pagos →</Link>
+      </div>
+      <div className="-mt-3 flex items-center justify-between text-xs text-white/40">
+        <span>{hora ? `Actualizado ${hora.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}` : "Cargando…"}</span>
+        <button className="text-amber-300 underline" onClick={cargar}>Actualizar</button>
       </div>
 
       {nuevo ? (

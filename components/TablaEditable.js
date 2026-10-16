@@ -6,6 +6,7 @@ import { mxn } from "@/lib/format";
 import { TABLAS } from "@/lib/tablas";
 import VentaRapida from "@/components/VentaRapida";
 import Combo from "@/components/Combo";
+import { useRefrescar } from "@/lib/useRefrescar";
 
 export default function TablaEditable({ tabla, chipsIniciales = {} }) {
   const cfg = TABLAS[tabla];
@@ -67,6 +68,8 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
       }
     })();
   }, [tabla]);
+
+  useRefrescar(() => { if (!edit && !vender) cargar(); });
 
   const visibles = useMemo(() => {
     // busca solo en lo que se ve en la tarjeta (sin los datos internos del socio del lote), sin acentos y con todas las palabras

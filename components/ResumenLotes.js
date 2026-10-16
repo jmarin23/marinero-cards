@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
+import { useRefrescar } from "@/lib/useRefrescar";
 
 const n = (x) => Number(x || 0);
 
@@ -15,15 +16,15 @@ export default function ResumenLotes({ onVerLote }) {
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [err, setErr] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const [p, l] = await Promise.all([
-        sb.from("v_productos").select("id_producto,id_lote,categoria,cantidad,inventario,vendidas,costo_total,costo_inventario,costo_unitario,reventa,venta_total").range(0, 4999),
-        sb.from("v_lotes").select("id_lote,nombre,fecha,venta").order("id_lote", { ascending: false }).range(0, 4999),
-      ]);
-      setDatos({ prods: p.data || [], lotes: l.data || [] });
-    })();
-  }, [sb]);
+  const cargar = async () => {
+    const [p, l] = await Promise.all([
+      sb.from("v_productos").select("id_producto,id_lote,categoria,cantidad,inventario,vendidas,costo_total,costo_inventario,costo_unitario,reventa,venta_total").range(0, 4999),
+      sb.from("v_lotes").select("id_lote,nombre,fecha,venta").order("id_lote", { ascending: false }).range(0, 4999),
+    ]);
+    setDatos({ prods: p.data || [], lotes: l.data || [] });
+  };
+  useEffect(() => { cargar(); }, [sb]);
+  useRefrescar(() => { if (!editando) cargar(); });
 
   const filas = useMemo(() => {
     if (!datos) return [];

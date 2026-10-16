@@ -1,5 +1,6 @@
 import "./globals.css";
 import Nav from "@/components/Nav";
+import NumerosLimpios from "@/components/NumerosLimpios";
 
 export const metadata = { title: "Marinero Cards", description: "Control de negocio de cartas" };
 
@@ -9,6 +10,7 @@ export default function RootLayout({ children }) {
       <body className="min-h-screen pb-24">
         <main className="mx-auto max-w-3xl px-4 pt-6">{children}</main>
         <Nav />
+        <NumerosLimpios />
       </body>
     </html>
   );

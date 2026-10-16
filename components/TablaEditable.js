@@ -5,11 +5,12 @@ import { listaSocios } from "@/lib/socios";
 import { mxn } from "@/lib/format";
 import { TABLAS } from "@/lib/tablas";
 import VentaRapida from "@/components/VentaRapida";
+import Combo from "@/components/Combo";
 
-export default function TablaEditable({ tabla }) {
+export default function TablaEditable({ tabla, chipsIniciales = {} }) {
   const cfg = TABLAS[tabla];
   const tablaDB = cfg.tabla || tabla;
-  const [chips, setChips] = useState({});
+  const [chips, setChips] = useState(chipsIniciales);
   const sb = useMemo(() => supabaseBrowser(), []);
   const [filas, setFilas] = useState([]);
   const [q, setQ] = useState("");
@@ -217,21 +218,19 @@ export default function TablaEditable({ tabla }) {
             <h2 className="mb-4 text-lg font-semibold">{edit.nuevo ? "Nuevo registro" : `Editar ${edit.id}`}</h2>
             <div className="space-y-3">
               {cfg.campos.map((c) => (
+                c.t === "select" ? (
+                  <div key={c.k} className="block text-sm text-white/60">{c.l}{c.req && " *"}
+                    <Combo value={edit.datos[c.k] ?? ""} onChange={(v) => set(c.k, v)}
+                      options={Array.isArray(c.opciones) ? c.opciones.map((o) => ({ v: o, l: o })) : opciones[c.k] || []} />
+                  </div>
+                ) : (
                 <label key={c.k} className="block text-sm text-white/60">{c.l}{c.req && " *"}
-                  {c.t === "select" ? (
-                    <select className="input mt-1" value={edit.datos[c.k] ?? ""} onChange={(e) => set(c.k, e.target.value)}>
-                      <option value="">—</option>
-                      {(Array.isArray(c.opciones) ? c.opciones.map((o) => ({ v: o, l: o })) : opciones[c.k] || []).map((o) => (
-                        <option key={o.v} value={o.v}>{o.l}</option>
-                      ))}
-                    </select>
-                  ) : (
                     <input className="input mt-1" type={c.t === "number" ? "number" : c.t === "date" ? "date" : "text"}
                       inputMode={c.t === "number" ? "decimal" : undefined} step="any" list={c.lista ? `dl-${c.k}` : undefined}
                       value={edit.datos[c.k] ?? ""} onChange={(e) => set(c.k, e.target.value)} />
-                  )}
                   {c.lista && <datalist id={`dl-${c.k}`}>{socios.map((s) => <option key={s} value={s} />)}</datalist>}
                 </label>
+                )
               ))}
             </div>
             {msg && <p className="mt-3 text-sm text-red-300">{msg.t}</p>}

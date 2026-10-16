@@ -1,0 +1,90 @@
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { mxn } from "@/lib/format";
+
+const n = (x) => Number(x || 0);
+
+// Una tarjeta por lote con lo que importa del inventario: cuántas piezas quedan, a cuánto, y qué ganancia dejaría.
+export default function ResumenLotes({ onVerLote }) {
+  const sb = useMemo(() => supabaseBrowser(), []);
+  const [datos, setDatos] = useState(null);
+  const [q, setQ] = useState("");
+  const [todos, setTodos] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [p, l] = await Promise.all([
+        sb.from("v_productos").select("id_producto,id_lote,categoria,cantidad,inventario,vendidas,costo_total,costo_inventario,costo_unitario,reventa,venta_total").range(0, 4999),
+        sb.from("v_lotes").select("id_lote,nombre,fecha,venta").order("id_lote", { ascending: false }).range(0, 4999),
+      ]);
+      setDatos({ prods: p.data || [], lotes: l.data || [] });
+    })();
+  }, [sb]);
+
+  const filas = useMemo(() => {
+    if (!datos) return [];
+    return datos.lotes.map((l) => {
+      const ps = datos.prods.filter((p) => p.id_lote === l.id_lote);
+      const reales = ps.filter((p) => p.categoria !== "Costo extra");
+      const disp = reales.reduce((t, p) => t + n(p.inventario), 0);
+      const costoLote = ps.reduce((t, p) => t + n(p.costo_total), 0);
+      const reventaDisp = reales.reduce((t, p) => t + n(p.inventario) * n(p.reventa || p.costo_unitario), 0);
+      const sinPrecio = reales.filter((p) => n(p.inventario) > 0 && !n(p.reventa)).length;
+      const vendido = n(l.venta);
+      return {
+        id: l.id_lote, nombre: l.nombre, productos: reales.length,
+        piezas: reales.reduce((t, p) => t + n(p.cantidad), 0), disp,
+        vendidas: reales.reduce((t, p) => t + n(p.vendidas), 0),
+        costoLote, vendido, costoDisp: reales.reduce((t, p) => t + n(p.costo_inventario), 0),
+        reventaDisp, sinPrecio, ganEstimada: vendido + reventaDisp - costoLote,
+      };
+    });
+  }, [datos]);
+
+  const t = (txt) => (txt || "").toLowerCase();
+  const vistas = filas.filter((x) => (todos || x.disp > 0) && (!q.trim() || t(x.nombre).includes(t(q.trim())) || t(x.id).includes(t(q.trim()))));
+  const tot = vistas.reduce((a, x) => ({ disp: a.disp + x.disp, piezas: a.piezas + x.piezas, costoDisp: a.costoDisp + x.costoDisp, reventaDisp: a.reventaDisp + x.reventaDisp }), { disp: 0, piezas: 0, costoDisp: 0, reventaDisp: 0 });
+
+  if (!datos) return <p className="text-white/50">Cargando…</p>;
+  const Dato = ({ l, v, cls = "" }) => (<div><div className="text-[11px] uppercase tracking-wide text-white/50">{l}</div><div className={`font-semibold ${cls}`}>{v}</div></div>);
+
+  return (
+    <div className="space-y-3">
+      <input className="input" placeholder="Buscar lote…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <label className="flex items-center gap-2 text-sm text-white/60">
+        <input type="checkbox" checked={todos} onChange={(e) => setTodos(e.target.checked)} /> Mostrar también los lotes agotados
+      </label>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">Disponibles</div><div className="font-bold text-amber-400">{tot.disp.toLocaleString("es-MX")}</div></div>
+        <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">A costo</div><div className="font-bold text-amber-400">{mxn(tot.costoDisp)}</div></div>
+        <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">A reventa</div><div className="font-bold text-amber-400">{mxn(tot.reventaDisp)}</div></div>
+      </div>
+      <p className="text-xs text-white/40">{vistas.length} lotes · toca uno para ver sus productos</p>
+      {vistas.map((x) => (
+        <button key={x.id} onClick={() => onVerLote(x.id)} className="card block w-full space-y-3 text-left active:bg-white/10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate font-semibold">{x.nombre}</div>
+              <div className="text-xs text-white/50">{x.id} · {x.productos} producto{x.productos === 1 ? "" : "s"}</div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="text-2xl font-bold text-amber-400">{x.disp}</div>
+              <div className="text-xs text-white/50">de {x.piezas} disponibles</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <Dato l="Costo del lote" v={mxn(x.costoLote)} />
+            <Dato l="Vendido" v={mxn(x.vendido)} />
+            <Dato l="Disponible a costo" v={mxn(x.costoDisp)} />
+            <Dato l="Disponible a reventa" v={mxn(x.reventaDisp)} />
+            <Dato l="Ganancia si vendes todo" v={mxn(x.ganEstimada)} cls={x.ganEstimada >= 0 ? "text-emerald-400" : "text-red-400"} />
+            <Dato l="Piezas vendidas" v={x.vendidas.toLocaleString("es-MX")} />
+          </div>
+          {x.sinPrecio > 0 && <div className="text-xs text-amber-300/80">{x.sinPrecio} producto{x.sinPrecio === 1 ? "" : "s"} sin precio de reventa (se cuenta a costo)</div>}
+        </button>
+      ))}
+      {vistas.length === 0 && <p className="text-sm text-white/50">No hay lotes con inventario.</p>}
+    </div>
+  );
+}

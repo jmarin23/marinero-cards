@@ -93,7 +93,7 @@ export default function ResumenLotes({ onVerLote }) {
               <Dato l="Vendido" v={mxn(x.vendido)} />
               <Dato l="Disponible a costo" v={mxn(x.costoDisp)} />
               <Dato l="Disponible a reventa" v={mxn(x.reventaDisp)} />
-              <Dato l="Ganancia si vendes todo" v={mxn(x.ganEstimada)} cls={x.ganEstimada >= 0 ? "text-emerald-400" : "text-red-400"} />
+              <Dato l="Ganancia si vendes todo" v={`${mxn(x.ganEstimada)}${x.costoLote > 0 ? ` · ${x.ganEstimada >= 0 ? "+" : ""}${Math.round((x.ganEstimada / x.costoLote) * 100)}%` : ""}`} cls={x.ganEstimada >= 0 ? "text-emerald-400" : "text-red-400"} />
               <Dato l="Piezas vendidas" v={x.vendidas.toLocaleString("es-MX")} />
             </div>
             {x.sinPrecio > 0 && <div className="text-xs text-amber-300/80">{x.sinPrecio} producto{x.sinPrecio === 1 ? "" : "s"} sin precio de reventa (se cuenta a costo)</div>}

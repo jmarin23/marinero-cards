@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { listaSocios } from "@/lib/socios";
 import { mxn } from "@/lib/format";
 
 const CATEGORIAS = ["Pokémon", "MLB", "NFL", "NBA", "Fut", "Costo extra", "Otro"];
@@ -31,8 +32,7 @@ export default function NuevaCompra() {
     (async () => {
       const { data: l } = await sb.from("lotes").select("id_lote,nombre").order("id_lote", { ascending: false });
       setLotes(l || []);
-      const { data: p } = await sb.from("productos").select("socio");
-      setSocios([...new Set((p || []).map((x) => x.socio).filter(Boolean))]);
+      setSocios(await listaSocios(sb));
     })();
   }, []);
 

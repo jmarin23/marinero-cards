@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { listaSocios } from "@/lib/socios";
 import { mxn } from "@/lib/format";
 import { TABLAS } from "@/lib/tablas";
 import VentaRapida from "@/components/VentaRapida";
@@ -61,8 +62,7 @@ export default function TablaEditable({ tabla }) {
       }
       setOpciones(o);
       if (cfg.campos.some((c) => c.lista === "socios")) {
-        const { data } = await sb.from("productos").select("socio");
-        setSocios([...new Set((data || []).map((x) => x.socio).filter(Boolean))]);
+        setSocios(await listaSocios(sb));
       }
     })();
   }, [tabla]);

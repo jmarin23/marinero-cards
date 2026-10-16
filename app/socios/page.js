@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
+import { PREFIJO_PCT } from "@/lib/socios";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -13,7 +14,10 @@ export default function Socios() {
   const [prods, setProds] = useState([]);
   const [lotes, setLotes] = useState({});
   const [pagos, setPagos] = useState([]);
-  const [pct, setPct] = useState(0.5);
+  const [pctBase, setPctBase] = useState(0.5); // % por defecto
+  const [pcts, setPcts] = useState({}); // % propio por socio
+  const [registrados, setRegistrados] = useState([]); // socios agregados a mano
+  const [nuevo, setNuevo] = useState(null); // formulario "Agregar socio"
   const [filtro, setFiltro] = useState("Todos");
   const [alCorriente, setAlCorriente] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -23,16 +27,22 @@ export default function Socios() {
     const [p, g, c, l] = await Promise.all([
       sb.from("v_productos").select("id_producto,id_lote,nombre,socio,quien_puso_costo,cantidad,vendidas,costo_total,costo_inventario,ganancia_real").range(0, 4999),
       sb.from("pagos_socios").select("*").range(0, 4999),
-      sb.from("config").select("valor").eq("clave", "porcentaje_socio").single(),
+      sb.from("config").select("clave,valor").or("clave.eq.porcentaje_socio,clave.like.pct:*"),
       sb.from("lotes").select("id_lote,nombre").range(0, 4999),
     ]);
     setProds(p.data || []); setPagos(g.data || []);
     setLotes(Object.fromEntries((l.data || []).map((x) => [x.id_lote, x.nombre])));
-    if (c.data) setPct(n(c.data.valor));
+    const filasCfg = c.data || [];
+    const base = filasCfg.find((x) => x.clave === "porcentaje_socio");
+    if (base) setPctBase(n(base.valor));
+    const propios = filasCfg.filter((x) => x.clave.startsWith(PREFIJO_PCT));
+    setPcts(Object.fromEntries(propios.map((x) => [x.clave.slice(PREFIJO_PCT.length), n(x.valor)])));
+    setRegistrados(propios.map((x) => x.clave.slice(PREFIJO_PCT.length)));
   }
   useEffect(() => { cargar(); }, []);
 
   const esSocio = (s) => s && !["Yo", "—", ""].includes(s);
+  const pctDe = (s) => (pcts[s] !== undefined ? pcts[s] : pctBase);
 
   // ---- unidades de cobro: un lote completo (si le pagaste por lote) o un producto ----
   const { unidades, resumen, avisos } = useMemo(() => {
@@ -44,14 +54,14 @@ export default function Socios() {
     for (const p of prodSocios) {
       const k = claveDe(p.socio, p.id_lote, p.id_producto);
       if (!U.has(k)) U.set(k, {
-        k, socio: p.socio, lote: k.startsWith("L|") ? p.id_lote : null, idProducto: k.startsWith("P|") ? p.id_producto : null,
+        k, socio: p.socio, pct: pctDe(p.socio), lote: k.startsWith("L|") ? p.id_lote : null, idProducto: k.startsWith("P|") ? p.id_producto : null,
         nombre: k.startsWith("L|") ? (lotes[p.id_lote] || p.id_lote) : p.nombre,
         productos: [], debeCosto: 0, parte: 0, pagCosto: 0, pagGan: 0, pagos: [],
       });
       const u = U.get(k);
       u.productos.push(p);
       u.debeCosto += p.quien_puso_costo === "Socio" ? n(p.costo_total) - n(p.costo_inventario) : 0;
-      u.parte += n(p.ganancia_real) * pct;
+      u.parte += n(p.ganancia_real) * pctDe(p.socio);
     }
     const prodPorId = Object.fromEntries(prods.map((p) => [p.id_producto, p]));
     const huerfanos = [];
@@ -71,16 +81,15 @@ export default function Socios() {
     for (const p of prodSocios) {
       const s = alta(p.socio);
       s.ganancia += n(p.ganancia_real);
-      s.parte += n(p.ganancia_real) * pct;
+      s.parte += n(p.ganancia_real) * pctDe(p.socio);
       if (p.quien_puso_costo === "Socio") s.cpr += n(p.costo_total) - n(p.costo_inventario);
     }
+    for (const r of registrados) alta(r); // socios agregados a mano, aunque aún no tengan productos
     for (const g of pagos) { const s = alta(g.socio); s.pagado += n(g.monto); if (g.tipo === "Costo") s.pagCosto += n(g.monto); else s.pagGan += n(g.monto); }
     const resumen = [...S.values()].map((s) => ({ ...s, debo: s.cpr + s.parte - s.pagado })).sort((a, b) => b.debo - a.debo);
 
     // avisos de datos que no cuadran
     const avisos = [];
-    const sinQuien = prodSocios.filter((p) => !p.quien_puso_costo && n(p.costo_total) > 0);
-    if (sinQuien.length) avisos.push({ t: `${sinQuien.length} productos con socio no dicen quién pagó el costo (se cuentan como que lo pagaste tú).`, a: "/datos/productos" });
     const pagoSocioDistinto = pagos.filter((g) => {
       const p = g.id_producto && prodPorId[g.id_producto];
       return p && p.socio !== g.socio;
@@ -92,7 +101,7 @@ export default function Socios() {
       if (sinVentas && (u.pagCosto + u.pagGan) > TOL) avisos.push({ t: `${u.nombre}: ya registraste ${mxn(u.pagCosto + u.pagGan)} de pago pero aún no hay ventas capturadas. Se acomoda solo al meter las ventas.`, a: null });
     }
     return { unidades: [...U.values()], resumen, avisos };
-  }, [prods, pagos, pct, lotes]);
+  }, [prods, pagos, pctBase, pcts, registrados, lotes]);
 
   const nombres = ["Todos", ...resumen.map((s) => s.socio)];
 
@@ -135,10 +144,26 @@ export default function Socios() {
     const { error } = await sb.from("pagos_socios").delete().neq("id_pago", "");
     if (error) setMsg(error.message); else cargar();
   }
-  async function guardarPct(v) {
-    setPct(v);
+  async function guardarPctBase(v) {
+    setPctBase(v);
     await sb.from("config").update({ valor: v }).eq("clave", "porcentaje_socio");
     cargar();
+  }
+  async function guardarPctSocio(socio, v) {
+    setMsg(null);
+    const { error } = await sb.from("config").upsert({ clave: PREFIJO_PCT + socio, valor: v });
+    if (error) setMsg(error.message); else cargar();
+  }
+  async function agregarSocio() {
+    const nombre = nuevo.nombre.trim();
+    if (!nombre) return setMsg("Escribe el nombre del socio");
+    if (["yo", "—"].includes(nombre.toLowerCase())) return setMsg("Ese nombre no sirve, pon el del socio");
+    if (resumen.some((s) => s.socio.toLowerCase() === nombre.toLowerCase())) return setMsg("Ese socio ya existe");
+    setMsg(null);
+    const v = (nuevo.pct === "" ? pctBase * 100 : Number(nuevo.pct)) / 100;
+    const { error } = await sb.from("config").upsert({ clave: PREFIJO_PCT + nombre, valor: v });
+    if (error) return setMsg(error.message);
+    setNuevo(null); cargar();
   }
 
   const Linea = ({ u, tipo, debe, pagado, falta }) => {
@@ -148,7 +173,7 @@ export default function Socios() {
     return (
       <div className="rounded-lg border border-white/10 p-2 text-sm">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-white/70">{tipo === "Costo" ? "Costo que te regresa" : `Ganancia (${Math.round(pct * 100)}%)`}</span>
+          <span className="text-white/70">{tipo === "Costo" ? "Costo que te regresa" : `Ganancia (${Math.round(u.pct * 100)}%)`}</span>
           <span className={ok ? "text-emerald-400" : lleva ? "font-semibold text-amber-400" : sinVentas ? "text-white/50" : "text-sky-300"}>
             {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : sinVentas ? "Sin ventas capturadas aún" : `Pagado de más ${mxn(-falta)}`}
           </span>
@@ -176,11 +201,32 @@ export default function Socios() {
         <Link href="/datos/pagos_socios" className="text-sm text-amber-400">Editar pagos →</Link>
       </div>
 
-      <label className="card flex items-center justify-between text-sm">
-        % de la ganancia para el socio
+      {nuevo ? (
+        <div className="card space-y-2">
+          <div className="font-semibold">Agregar socio</div>
+          <input className="input" placeholder="Nombre del socio" autoFocus value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
+          <label className="flex items-center justify-between text-sm text-white/70">
+            % de la ganancia para él
+            <span className="flex items-center gap-1">
+              <input className="input !w-20 text-right" type="number" min="0" max="100" placeholder={String(Math.round(pctBase * 100))}
+                value={nuevo.pct} onChange={(e) => setNuevo({ ...nuevo, pct: e.target.value })} />%
+            </span>
+          </label>
+          <div className="flex gap-2">
+            <button className="btn flex-1" onClick={agregarSocio}>Guardar socio</button>
+            <button className="rounded-lg border border-white/15 px-4 text-white/70" onClick={() => setNuevo(null)}>Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn w-full" onClick={() => { setMsg(null); setNuevo({ nombre: "", pct: "" }); }}>+ Agregar socio</button>
+      )}
+      {msg && <p className="text-sm text-red-300">{msg}</p>}
+
+      <label className="card flex items-center justify-between text-sm text-white/70">
+        % por defecto (socios sin % propio)
         <span className="flex items-center gap-1">
-          <input className="input !w-20 text-right" type="number" min="0" max="100" value={Math.round(pct * 100)}
-            onChange={(e) => setPct(Number(e.target.value) / 100)} onBlur={(e) => guardarPct(Number(e.target.value) / 100)} />%
+          <input className="input !w-20 text-right" type="number" min="0" max="100" value={Math.round(pctBase * 100)}
+            onChange={(e) => setPctBase(Number(e.target.value) / 100)} onBlur={(e) => guardarPctBase(Number(e.target.value) / 100)} />%
         </span>
       </label>
 
@@ -204,6 +250,14 @@ export default function Socios() {
                 {s.debo > TOL ? `Debo ${mxn(s.debo)}` : s.debo < -TOL ? `Pagado de más ${mxn(-s.debo)}` : "Al corriente"}
               </span>
             </div>
+            <label className="mt-1 flex items-center justify-between text-xs text-white/50">
+              % de la ganancia para {s.socio}
+              <span className="flex items-center gap-1">
+                <input className="input !w-16 !py-1 text-right" type="number" min="0" max="100" value={Math.round(pctDe(s.socio) * 100)}
+                  onChange={(e) => setPcts({ ...pcts, [s.socio]: Number(e.target.value) / 100 })}
+                  onBlur={(e) => guardarPctSocio(s.socio, Number(e.target.value) / 100)} />%
+              </span>
+            </label>
             <div className="mt-2 space-y-1 text-sm">
               <div className="flex items-baseline justify-between">
                 <span className="text-white/70">Utilidad que le toca</span>
@@ -231,8 +285,6 @@ export default function Socios() {
         <label className="flex items-center gap-2 text-sm text-white/60">
           <input type="checkbox" checked={alCorriente} onChange={(e) => setAlCorriente(e.target.checked)} /> Mostrar también los que ya están al corriente
         </label>
-        {msg && <p className="text-sm text-red-300">{msg}</p>}
-
         {filas.map((u) => {
           const l = lineas(u);
           return (

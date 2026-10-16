@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { notaLimpia } from "@/lib/tablas";
 
@@ -102,6 +103,8 @@ export default function PanelPagos() {
       ) : per !== "todo" ? (
         <p className="text-xs text-white/40">{rango.a.split("-").reverse().join("/")} – {rango.b.split("-").reverse().join("/")}</p>
       ) : null}
+
+      <Link href="/tiktok/pagos" className="block text-sm text-amber-300">Subir reporte de TikTok y marcar lo pagado →</Link>
 
       {ventas === null && <p className="text-sm text-white/50">Cargando…</p>}
       {ventas !== null && (

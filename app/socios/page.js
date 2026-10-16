@@ -8,6 +8,7 @@ import { useRefrescar } from "@/lib/useRefrescar";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
+const fechaCorta = (d) => (d ? d.split("-").reverse().join("/") : "sin fecha");
 const TOL = 0.5; // diferencias menores a 50 centavos cuentan como "al corriente"
 
 export default function Socios() {
@@ -24,10 +25,11 @@ export default function Socios() {
   const [msg, setMsg] = useState(null);
   const [ocupado, setOcupado] = useState(null);
   const [hora, setHora] = useState(null);
+  const [montos, setMontos] = useState({}); // monto escrito para cada pago parcial
 
   async function cargar() {
     const [p, g, c, l] = await Promise.all([
-      sb.from("v_productos").select("id_producto,id_lote,nombre,socio,quien_puso_costo,cantidad,vendidas,costo_total,costo_inventario,ganancia_real").range(0, 4999),
+      sb.from("v_productos").select("id_producto,id_lote,nombre,categoria,socio,quien_puso_costo,cantidad,vendidas,costo_total,costo_inventario,costo_unitario,venta_total,ganancia_real").range(0, 4999),
       sb.from("pagos_socios").select("*").range(0, 4999),
       sb.from("config").select("clave,valor"),
       sb.from("lotes").select("id_lote,nombre").range(0, 4999),
@@ -124,7 +126,9 @@ export default function Socios() {
     return alCorriente || pendiente;
   });
 
-  async function pagar(u, tipo, monto) {
+  async function pagar(u, tipo, monto, falta) {
+    if (!(monto > 0)) return setMsg("Escribe un monto mayor a 0");
+    if (monto > falta + TOL && !confirm(`Es más de lo que falta (${mxn(falta)}). ¿Registrar ${mxn(monto)} de todos modos?`)) return;
     setOcupado(u.k + tipo); setMsg(null);
     const max = pagos.reduce((m, x) => Math.max(m, parseInt(String(x.id_pago).replace(/\D/g, ""), 10) || 0), 0);
     const { error } = await sb.from("pagos_socios").insert({
@@ -134,14 +138,12 @@ export default function Socios() {
       notas: (u.lote ? "Lote completo | " : "") + (tipo === "Costo" ? "Costo regresado" : "Ganancia pagada"),
     });
     setOcupado(null);
-    if (error) setMsg(error.message); else cargar();
+    if (error) setMsg(error.message); else { setMontos((m) => ({ ...m, [u.k + tipo]: "" })); cargar(); }
   }
-  async function deshacer(u, tipo) {
-    const ult = u.pagos.filter((g) => (tipo === "Costo" ? g.tipo === "Costo" : g.tipo !== "Costo")).sort((a, b) => String(b.id_pago).localeCompare(String(a.id_pago)))[0];
-    if (!ult || !confirm(`¿Quitar el pago ${ult.id_pago} de ${mxn(ult.monto)}?`)) return;
-    setOcupado(u.k + tipo); setMsg(null);
-    const { error } = await sb.from("pagos_socios").delete().eq("id_pago", ult.id_pago);
-    setOcupado(null);
+  async function deshacerPago(g) {
+    if (!confirm(`¿Quitar el pago del ${fechaCorta(g.fecha)} por ${mxn(g.monto)}?`)) return;
+    setMsg(null);
+    const { error } = await sb.from("pagos_socios").delete().eq("id_pago", g.id_pago);
     if (error) setMsg(error.message); else cargar();
   }
   async function borrarTodos() {
@@ -172,33 +174,92 @@ export default function Socios() {
     setNuevo(null); cargar();
   }
 
-  const Linea = ({ u, tipo, debe, pagado, falta }) => {
+  const pctTxt = (p) => `${Math.round(p * 10000) / 100}%`;
+  const Fila = ({ titulo, sub, v, rojo }) => (
+    <div className="flex items-start justify-between gap-3">
+      <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}</span>
+      <span className={`shrink-0 ${rojo ? "text-red-400" : ""}`}>{mxn(v)}</span>
+    </div>
+  );
+
+  // Qué se está sumando en cada renglón (se llama como función, no como componente, para no perder el foco al escribir)
+  function desglose(u, tipo, debe) {
+    if (tipo === "Costo") {
+      const filas = u.productos.filter((p) => p.quien_puso_costo === "Socio").map((p) => ({ p, v: n(p.costo_total) - n(p.costo_inventario) })).filter((x) => Math.abs(x.v) > 0.005);
+      const tuyos = u.productos.filter((p) => p.quien_puso_costo !== "Socio" && n(p.costo_total) > 0).length;
+      return (
+        <div className="mt-2 space-y-1 text-xs">
+          {filas.length === 0 && <p className="text-white/40">Todavía no hay nada vendido de lo que él pagó.</p>}
+          {filas.map(({ p, v }) => (
+            <Fila key={p.id_producto} titulo={p.nombre} v={v}
+              sub={p.categoria === "Costo extra" ? "costo extra, se cuenta completo" : `${n(p.vendidas)} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
+          ))}
+          <div className="flex justify-between border-t border-white/10 pt-1 font-semibold"><span>Total</span><span>{mxn(debe)}</span></div>
+          <p className="text-white/40">Solo cuenta el costo de lo que ya vendiste; lo que sigue en inventario se suma cuando se venda.{tuyos > 0 ? ` ${tuyos} producto${tuyos === 1 ? "" : "s"} de este lote los pagaste tú y no se te regresan.` : ""}</p>
+        </div>
+      );
+    }
+    const gTotal = u.productos.reduce((t, p) => t + n(p.ganancia_real), 0);
+    return (
+      <div className="mt-2 space-y-1 text-xs">
+        {u.productos.map((p) => {
+          const extra = p.categoria === "Costo extra";
+          const vend = n(p.vendidas);
+          const costoVend = n(p.venta_total) - n(p.ganancia_real);
+          return (
+            <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} rojo={n(p.ganancia_real) < -0.005}
+              sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(costoVend)}`} />
+          );
+        })}
+        <div className="flex justify-between border-t border-white/10 pt-1"><span>Ganancia del lote</span><span>{mxn(gTotal)}</span></div>
+        <div className="flex justify-between font-semibold"><span>Le toca {pctTxt(u.pct)}</span><span>{mxn(debe)}</span></div>
+      </div>
+    );
+  }
+
+  function linea({ u, tipo, debe, pagado, falta }) {
+    const clave = u.k + tipo;
     const ok = Math.abs(falta) <= TOL;
     const lleva = falta > TOL;
     const sinVentas = u.productos.every((p) => n(p.vendidas) === 0); // nada vendido aún: el pago no tiene contra qué compararse
+    const mios = u.pagos.filter((g) => (tipo === "Costo" ? g.tipo === "Costo" : g.tipo !== "Costo")).sort((a, b) => String(b.id_pago).localeCompare(String(a.id_pago)));
+    const montoEscrito = Number(montos[clave]) || 0;
     return (
-      <div className="rounded-lg border border-white/10 p-2 text-sm">
+      <div key={clave} className="rounded-lg border border-white/10 p-2 text-sm">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-white/70">{tipo === "Costo" ? "Costo que te regresa" : `Ganancia (${Math.round(u.pct * 100)}%)`}</span>
+          <span className="text-white/70">{tipo === "Costo" ? "Costo que te regresa" : `Ganancia (${pctTxt(u.pct)})`}</span>
           <span className={ok ? "text-emerald-400" : lleva ? "font-semibold text-amber-400" : sinVentas ? "text-white/50" : "text-sky-300"}>
             {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : sinVentas ? "Sin ventas capturadas aún" : `Pagado de más ${mxn(-falta)}`}
           </span>
         </div>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-white/50">
-          <span>Corresponde {mxn(debe)} · pagado {mxn(pagado)}</span>
-          <span className="flex gap-3">
-            {pagado > TOL && <button className="underline" disabled={ocupado === u.k + tipo} onClick={() => deshacer(u, tipo)}>Quitar último pago</button>}
-          </span>
-        </div>
+        <div className="mt-1 text-xs text-white/50">Corresponde {mxn(debe)} · pagado {mxn(pagado)}</div>
+        <details className="mt-1 text-xs">
+          <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
+          {desglose(u, tipo, debe)}
+        </details>
+        {mios.length > 0 && (
+          <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs">
+            {mios.map((g) => (
+              <div key={g.id_pago} className="flex items-center justify-between gap-3 text-white/60">
+                <span>Pago del {fechaCorta(g.fecha)}</span>
+                <span>{mxn(g.monto)} <button className="ml-2 text-red-400 underline" onClick={() => deshacerPago(g)}>Quitar</button></span>
+              </div>
+            ))}
+          </div>
+        )}
         {lleva && (
-          <button disabled={ocupado === u.k + tipo} onClick={() => pagar(u, tipo, falta)}
-            className="mt-2 w-full rounded-lg border border-amber-500/60 py-2 text-amber-300 active:bg-amber-500/10">
-            Ya pagué {mxn(falta)}
-          </button>
+          <div className="mt-2 flex gap-2">
+            <input className="input !w-28 !py-2" type="number" inputMode="decimal" step="any" placeholder="Otro monto" value={montos[clave] ?? ""}
+              onChange={(e) => setMontos((m) => ({ ...m, [clave]: e.target.value }))} />
+            <button disabled={ocupado === clave} onClick={() => pagar(u, tipo, montoEscrito > 0 ? montoEscrito : falta, falta)}
+              className="flex-1 rounded-lg border border-amber-500/60 py-2 text-amber-300 active:bg-amber-500/10">
+              {montoEscrito > 0 ? `Registrar pago de ${mxn(montoEscrito)}` : `Ya pagué todo ${mxn(falta)}`}
+            </button>
+          </div>
         )}
       </div>
     );
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -303,8 +364,8 @@ export default function Socios() {
                 <div className="truncate">{u.nombre}</div>
                 <div className="text-xs text-white/50">{u.socio}{u.productos.length > 1 ? ` · ${u.productos.length} productos` : ""}</div>
               </div>
-              {l.tieneCosto && <Linea u={u} tipo="Costo" debe={u.debeCosto} pagado={u.pagCosto} falta={l.falCosto} />}
-              {l.tieneGan && <Linea u={u} tipo="Ganancia" debe={u.parte} pagado={u.pagGan} falta={l.falGan} />}
+              {l.tieneCosto && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
+              {l.tieneGan && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
             </div>
           );
         })}

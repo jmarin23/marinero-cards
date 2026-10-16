@@ -25,6 +25,7 @@ export default function NuevaCompra() {
   const [tc, setTc] = useState("18");
   const [impuesto, setImpuesto] = useState("0");
   const [envio, setEnvio] = useState("");
+  const [taxUsa, setTaxUsa] = useState("");
   const [lineas, setLineas] = useState([linea()]);
   const [msg, setMsg] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -40,12 +41,18 @@ export default function NuevaCompra() {
   const factor = moneda === "USD" ? num(tc) : 1;
   const subtotales = lineas.map((l) => num(l.precio) * num(l.cantidad));
   const sumaSub = subtotales.reduce((a, b) => a + b, 0);
+  const pctTax = moneda === "USD" ? num(taxUsa) / 100 : 0; // tax del vendedor en USA (solo compras en USD)
   const calculo = lineas.map((l, i) => {
-    const base = subtotales[i] + (sumaSub > 0 ? (num(envio) * subtotales[i]) / sumaSub : 0); // envío prorrateado
-    const total = Math.round(base * factor * (1 + num(impuesto) / 100) * 100) / 100;
+    const envioParte = sumaSub > 0 ? (num(envio) * subtotales[i]) / sumaSub : 0; // envío prorrateado
+    const conAduana = (subtotales[i] + envioParte) * factor * (1 + num(impuesto) / 100); // la aduana va sobre producto + envío
+    const total = Math.round((conAduana + subtotales[i] * pctTax * factor) * 100) / 100; // el tax de USA va sobre el producto
     return { total, unit: num(l.cantidad) > 0 ? total / num(l.cantidad) : 0 };
   });
   const totalLote = calculo.reduce((a, c) => a + c.total, 0);
+  const desglose = {
+    productos: sumaSub * factor, envio: num(envio) * factor, tax: sumaSub * pctTax * factor,
+    aduana: (sumaSub + num(envio)) * factor * (num(impuesto) / 100),
+  };
 
   const setL = (i, k, v) => setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
 
@@ -87,7 +94,7 @@ export default function NuevaCompra() {
     }
     setGuardando(false);
     setMsg({ ok: true, t: `Guardado: ${filas.length} producto(s) en ${idLote} por ${mxn(totalLote)}` });
-    setLineas([linea()]); setEnvio(""); setLoteNombre(""); setNotas("");
+    setLineas([linea()]); setEnvio(""); setTaxUsa(""); setLoteNombre(""); setNotas("");
     if (creado) setLoteSel(idLote);
     const { data: l } = await sb.from("lotes").select("id_lote,nombre").order("id_lote", { ascending: false });
     setLotes(l || []);
@@ -129,18 +136,40 @@ export default function NuevaCompra() {
               <input className="input mt-1" type="number" step="any" inputMode="decimal" value={tc} onChange={(e) => setTc(e.target.value)} />
             </label>
           )}
-          <label className="text-sm text-white/60">Aduana / impuesto (%)
+          <label className="text-sm text-white/60">Aduana a México (%)
             <input className="input mt-1" type="number" step="any" inputMode="decimal" value={impuesto} onChange={(e) => setImpuesto(e.target.value)} />
           </label>
           <label className="text-sm text-white/60">Envío total ({moneda})
             <input className="input mt-1" type="number" step="any" inputMode="decimal" value={envio} onChange={(e) => setEnvio(e.target.value)} placeholder="se reparte entre productos" />
           </label>
+          {moneda === "USD" && (
+            <label className="text-sm text-white/60">Tax de USA (%)
+              <input className="input mt-1" type="number" step="any" inputMode="decimal" value={taxUsa} onChange={(e) => setTaxUsa(e.target.value)} placeholder="el que cobra la tienda" />
+            </label>
+          )}
         </div>
-        <div className="flex gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-white/40">Aduana:</span>
           {[0, 8.35, 16, 20].map((p) => (
             <button key={p} onClick={() => setImpuesto(String(p))} className="rounded-full border border-white/15 px-3 py-1 text-white/60">{p}%</button>
           ))}
         </div>
+        {moneda === "USD" && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-white/40">Tax USA:</span>
+            {[0, 6.25, 7.25, 8.25, 10].map((p) => (
+              <button key={p} onClick={() => setTaxUsa(String(p))} className="rounded-full border border-white/15 px-3 py-1 text-white/60">{p}%</button>
+            ))}
+          </div>
+        )}
+        {sumaSub > 0 && (
+          <div className="space-y-1 border-t border-white/10 pt-3 text-sm">
+            {[["Productos", desglose.productos], ["Envío", desglose.envio], ["Tax de USA", desglose.tax], ["Aduana a México", desglose.aduana]].filter(([, v]) => v > 0.005).map(([l, v]) => (
+              <div key={l} className="flex justify-between text-white/60"><span>{l}</span><span>{mxn(v)}</span></div>
+            ))}
+            <div className="flex justify-between font-semibold"><span>Total del lote</span><span className="text-amber-400">{mxn(totalLote)}</span></div>
+          </div>
+        )}
       </section>
 
       <section className="space-y-3">

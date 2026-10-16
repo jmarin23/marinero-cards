@@ -248,11 +248,11 @@ export default function Socios() {
           </div>
         )}
         {lleva && (
-          <div className="mt-2 flex gap-2">
-            <input className="input !w-28 !py-2" type="number" inputMode="decimal" step="any" placeholder="Otro monto" value={montos[clave] ?? ""}
+          <div className="mt-2 grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2">
+            <input className="input !py-2" type="number" inputMode="decimal" step="any" placeholder="Otro monto" value={montos[clave] ?? ""}
               onChange={(e) => setMontos((m) => ({ ...m, [clave]: e.target.value }))} />
             <button disabled={ocupado === clave} onClick={() => pagar(u, tipo, montoEscrito > 0 ? montoEscrito : falta, falta)}
-              className="flex-1 rounded-lg border border-amber-500/60 py-2 text-amber-300 active:bg-amber-500/10">
+              className="rounded-lg border border-amber-500/60 px-2 py-3 text-sm leading-tight text-amber-300 active:bg-amber-500/10">
               {montoEscrito > 0 ? `Registrar pago de ${mxn(montoEscrito)}` : `Ya pagué todo ${mxn(falta)}`}
             </button>
           </div>

@@ -16,6 +16,7 @@ export default function Socios() {
   const [prods, setProds] = useState([]);
   const [lotes, setLotes] = useState({});
   const [pagos, setPagos] = useState([]);
+  const [ventasPor, setVentasPor] = useState({}); // ventas de cada producto, para el desglose
   const [pctBase, setPctBase] = useState(0.5); // % por defecto
   const [pcts, setPcts] = useState({}); // % propio por socio
   const [registrados, setRegistrados] = useState([]); // socios agregados a mano
@@ -28,15 +29,19 @@ export default function Socios() {
   const [montos, setMontos] = useState({}); // monto escrito para cada pago parcial
 
   async function cargar() {
-    const [p, g, c, l] = await Promise.all([
+    const [p, g, c, l, vt] = await Promise.all([
       sb.from("v_productos").select("id_producto,id_lote,nombre,categoria,socio,quien_puso_costo,cantidad,vendidas,costo_total,costo_inventario,costo_unitario,venta_total,ganancia_real").range(0, 4999),
       sb.from("pagos_socios").select("*").range(0, 4999),
       sb.from("config").select("clave,valor"),
       sb.from("lotes").select("id_lote,nombre").range(0, 4999),
+      sb.from("ventas").select("id_venta,id_producto,fecha,cantidad,monto_neto,estado").not("id_producto", "is", null).neq("estado", "Reembolso").order("fecha", { ascending: true }).range(0, 4999),
     ]);
-    const fallo = [p, g, c, l].find((x) => x.error);
+    const fallo = [p, g, c, l, vt].find((x) => x.error);
     if (fallo) setMsg(`No pude leer los datos: ${fallo.error.message}`);
     setProds(p.data || []); setPagos(g.data || []);
+    const por = {};
+    (vt.data || []).forEach((v) => { (por[v.id_producto] ||= []).push(v); });
+    setVentasPor(por);
     setLotes(Object.fromEntries((l.data || []).map((x) => [x.id_lote, x.nombre])));
     const filasCfg = c.data || [];
     const base = filasCfg.find((x) => x.clave === "porcentaje_socio");
@@ -175,39 +180,54 @@ export default function Socios() {
   }
 
   const pctTxt = (p) => `${Math.round(p * 10000) / 100}%`;
-  const Fila = ({ titulo, sub, v, rojo }) => (
-    <div className="flex items-start justify-between gap-3">
-      <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}</span>
-      <span className={`shrink-0 ${rojo ? "text-red-400" : ""}`}>{mxn(v)}</span>
+  const diaMes = (d) => (d ? d.split("-").slice(1).reverse().join("/") : "s/f");
+  const Fila = ({ titulo, sub, v, rojo, ventas, gris }) => (
+    <div>
+      <div className={`flex items-start justify-between gap-3 ${gris ? "opacity-60" : ""}`}>
+        <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}</span>
+        <span className={`shrink-0 ${rojo ? "text-red-400" : ""}`}>{mxn(v)}</span>
+      </div>
+      {ventas && ventas.length > 0 && (
+        <div className="mt-1 space-y-0.5 border-l border-white/10 pl-2 text-white/40">
+          {ventas.map((x) => (
+            <div key={x.id_venta} className="flex justify-between gap-3">
+              <span>{x.id_venta} · {diaMes(x.fecha)} · {n(x.cantidad)} pza{n(x.cantidad) === 1 ? "" : "s"} · {x.estado}</span>
+              <span>{mxn(x.monto_neto)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
   // Qué se está sumando en cada renglón (se llama como función, no como componente, para no perder el foco al escribir)
   function desglose(u, tipo, debe) {
     if (tipo === "Costo") {
-      const filas = u.productos.filter((p) => p.quien_puso_costo === "Socio").map((p) => ({ p, v: n(p.costo_total) - n(p.costo_inventario) })).filter((x) => Math.abs(x.v) > 0.005);
-      const tuyos = u.productos.filter((p) => p.quien_puso_costo !== "Socio" && n(p.costo_total) > 0).length;
       return (
-        <div className="mt-2 space-y-1 text-xs">
-          {filas.length === 0 && <p className="text-white/40">Todavía no hay nada vendido de lo que él pagó.</p>}
-          {filas.map(({ p, v }) => (
-            <Fila key={p.id_producto} titulo={p.nombre} v={v}
-              sub={p.categoria === "Costo extra" ? "costo extra, se cuenta completo" : `${n(p.vendidas)} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
-          ))}
+        <div className="mt-2 space-y-2 text-xs">
+          {u.productos.map((p) => {
+            const delSocio = p.quien_puso_costo === "Socio";
+            const v = delSocio ? n(p.costo_total) - n(p.costo_inventario) : 0;
+            const extra = p.categoria === "Costo extra";
+            return (
+              <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null}
+                sub={!delSocio ? "lo pagaste tú, no se te regresa" : extra ? "costo extra, se cuenta completo" : `${n(p.vendidas)} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
+            );
+          })}
           <div className="flex justify-between border-t border-white/10 pt-1 font-semibold"><span>Total</span><span>{mxn(debe)}</span></div>
-          <p className="text-white/40">Solo cuenta el costo de lo que ya vendiste; lo que sigue en inventario se suma cuando se venda.{tuyos > 0 ? ` ${tuyos} producto${tuyos === 1 ? "" : "s"} de este lote los pagaste tú y no se te regresan.` : ""}</p>
+          <p className="text-white/40">Solo cuenta el costo de lo que ya vendiste; lo que sigue en inventario se suma cuando se venda.</p>
         </div>
       );
     }
     const gTotal = u.productos.reduce((t, p) => t + n(p.ganancia_real), 0);
     return (
-      <div className="mt-2 space-y-1 text-xs">
+      <div className="mt-2 space-y-2 text-xs">
         {u.productos.map((p) => {
           const extra = p.categoria === "Costo extra";
           const vend = n(p.vendidas);
           const costoVend = n(p.venta_total) - n(p.ganancia_real);
           return (
-            <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} rojo={n(p.ganancia_real) < -0.005}
+            <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} rojo={n(p.ganancia_real) < -0.005} ventas={extra ? null : ventasPor[p.id_producto]}
               sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(costoVend)}`} />
           );
         })}

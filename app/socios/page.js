@@ -181,13 +181,13 @@ export default function Socios() {
 
   const pctTxt = (p) => `${Math.round(p * 10000) / 100}%`;
   const diaMes = (d) => (d ? d.split("-").slice(1).reverse().join("/") : "s/f");
-  const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca }) => (
+  const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca, toca_a }) => (
     <div>
       <div className={`flex items-start justify-between gap-3 ${gris ? "opacity-60" : ""}`}>
         <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}</span>
         <span className="shrink-0 text-right">
           <span className={rojo ? "text-red-400" : ""}>{mxn(v)}</span>
-          {toca != null && <span className={`block ${toca < -0.005 ? "text-red-400" : "text-amber-300"}`}>te toca {mxn(toca)}</span>}
+          {toca != null && <span className={`block ${toca < -0.005 ? "text-red-400" : "text-amber-300"}`}>Le toca a {toca_a} {mxn(toca)}</span>}
         </span>
       </div>
       {ventas && ventas.length > 0 && (
@@ -230,12 +230,12 @@ export default function Socios() {
           const vend = n(p.vendidas);
           const costoVend = n(p.venta_total) - n(p.ganancia_real);
           return (
-            <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={n(p.ganancia_real) * u.pct} rojo={n(p.ganancia_real) < -0.005} ventas={extra ? null : ventasPor[p.id_producto]}
+            <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={n(p.ganancia_real) * u.pct} toca_a={u.socio} rojo={n(p.ganancia_real) < -0.005} ventas={extra ? null : ventasPor[p.id_producto]}
               sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(costoVend)}`} />
           );
         })}
         <div className="flex justify-between border-t border-white/10 pt-1"><span>Ganancia del lote</span><span>{mxn(gTotal)}</span></div>
-        <div className="flex justify-between font-semibold"><span>Le toca {pctTxt(u.pct)} del lote</span><span>{mxn(debe)}</span></div>
+        <div className="flex justify-between font-semibold"><span>Le toca a {u.socio} ({pctTxt(u.pct)}) del lote</span><span>{mxn(debe)}</span></div>
       </div>
     );
   }
@@ -276,7 +276,7 @@ export default function Socios() {
               onChange={(e) => setMontos((m) => ({ ...m, [clave]: e.target.value }))} />
             <button disabled={ocupado === clave} onClick={() => pagar(u, tipo, montoEscrito > 0 ? montoEscrito : falta, falta)}
               className="rounded-lg border border-amber-500/60 px-2 py-3 text-sm leading-tight text-amber-300 active:bg-amber-500/10">
-              {montoEscrito > 0 ? `Registrar pago de ${mxn(montoEscrito)}` : `Ya pagué todo ${mxn(falta)}`}
+              {montoEscrito > 0 ? `Registrar pago de ${mxn(montoEscrito)}` : `Monto por pagar: ${mxn(falta)}`}
             </button>
           </div>
         )}

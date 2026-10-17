@@ -145,6 +145,11 @@ export default function Socios() {
     setOcupado(null);
     if (error) setMsg(error.message); else { setMontos((m) => ({ ...m, [u.k + tipo]: "" })); cargar(); }
   }
+  async function loPagoElSocio(ids) {
+    setMsg(null);
+    const { error } = await sb.from("productos").update({ quien_puso_costo: "Socio" }).in("id_producto", ids);
+    if (error) setMsg(error.message); else cargar();
+  }
   async function deshacerPago(g) {
     if (!confirm(`¿Quitar el pago del ${fechaCorta(g.fecha)} por ${mxn(g.monto)}?`)) return;
     setMsg(null);
@@ -181,7 +186,7 @@ export default function Socios() {
 
   const pctTxt = (p) => `${Math.round(p * 10000) / 100}%`;
   const diaMes = (d) => (d ? d.split("-").slice(1).reverse().join("/") : "s/f");
-  const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca, toca_a }) => (
+  const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca, toca_a, accion }) => (
     <div>
       <div className={`flex items-start justify-between gap-3 ${gris ? "opacity-60" : ""}`}>
         <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}</span>
@@ -190,6 +195,7 @@ export default function Socios() {
           {toca != null && <span className={`block ${toca < -0.005 ? "text-red-400" : "text-amber-300"}`}>Le toca a {toca_a} {mxn(toca)}</span>}
         </span>
       </div>
+      {accion && <button className="mt-1 text-amber-300 underline" onClick={accion.f}>{accion.t}</button>}
       {ventas && ventas.length > 0 && (
         <div className="mt-1 space-y-0.5 border-l border-white/10 pl-2 text-white/40">
           {ventas.map((x) => (
@@ -213,10 +219,15 @@ export default function Socios() {
             const v = delSocio ? n(p.costo_total) - n(p.costo_inventario) : 0;
             const extra = p.categoria === "Costo extra";
             return (
-              <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null}
+              <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} accion={!delSocio ? { t: `Lo pagó ${u.socio}`, f: () => loPagoElSocio([p.id_producto]) } : null} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null}
                 sub={!delSocio ? "lo pagaste tú, no se te regresa" : extra ? "costo extra, se cuenta completo" : `${n(p.vendidas)} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
             );
           })}
+          {u.productos.filter((p) => p.quien_puso_costo !== "Socio").length > 1 && (
+            <button className="text-amber-300 underline" onClick={() => loPagoElSocio(u.productos.filter((p) => p.quien_puso_costo !== "Socio").map((p) => p.id_producto))}>
+              Todo el lote lo pagó {u.socio}
+            </button>
+          )}
           <div className="flex justify-between border-t border-white/10 pt-1 font-semibold"><span>Total</span><span>{mxn(debe)}</span></div>
           <p className="text-white/40">Solo cuenta el costo de lo que ya vendiste; lo que sigue en inventario se suma cuando se venda.</p>
         </div>

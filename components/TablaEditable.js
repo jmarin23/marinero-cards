@@ -104,6 +104,9 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
     const d = {};
     cfg.campos.forEach((c) => { d[c.k] = r[c.k] ?? ""; });
     if (cfg.campos.some((c) => c.k === "_unitario")) d._unitario = unitario(d.costo_total, d.cantidad);
+    // lo del socio se aplica a todo el lote por defecto, y solo si lo cambiaste
+    if (cfg.campos.some((c) => c.k === "_alcance")) d._alcance = "Todo el lote";
+    d._socio0 = d._socio ?? ""; d._quien0 = d._quien ?? "";
     setEdit({ nuevo: false, id: r[cfg.pk], datos: d }); setBorrar(false); setMsg(null);
   }
 

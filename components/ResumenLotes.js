@@ -15,6 +15,8 @@ export default function ResumenLotes({ onVerLote }) {
   const [editando, setEditando] = useState(null); // id del lote que se está renombrando
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [err, setErr] = useState("");
+  const [borrando, setBorrando] = useState(null); // { id, nombre, prods, ventas, monto, pagos } esperando confirmación
+  const [ocupado, setOcupado] = useState(false);
 
   const cargar = async () => {
     const [p, l] = await Promise.all([
@@ -54,6 +56,45 @@ export default function ResumenLotes({ onVerLote }) {
     if (error) return setErr(error.message);
     setDatos((d) => ({ ...d, lotes: d.lotes.map((l) => (l.id_lote === id ? { ...l, nombre } : l)) }));
     setEditando(null);
+  }
+  // Cuenta qué se llevaría el lote antes de borrarlo
+  async function pedirBorrar(x) {
+    setErr(""); setOcupado(true);
+    const ids = (datos.prods.filter((p) => p.id_lote === x.id)).map((p) => p.id_producto);
+    const ventasQ = [sb.from("ventas").select("id_venta,monto_neto").eq("id_lote", x.id).range(0, 4999)];
+    const pagosQ = [sb.from("pagos_socios").select("id_pago").eq("id_lote", x.id).range(0, 4999)];
+    if (ids.length) {
+      ventasQ.push(sb.from("ventas").select("id_venta,monto_neto").in("id_producto", ids).range(0, 4999));
+      pagosQ.push(sb.from("pagos_socios").select("id_pago").in("id_producto", ids).range(0, 4999));
+    }
+    const rs = await Promise.all([...ventasQ, ...pagosQ]);
+    setOcupado(false);
+    const fallo = rs.find((r) => r.error);
+    if (fallo) return setErr(fallo.error.message);
+    const vs = new Map(), pg = new Set();
+    rs.slice(0, ventasQ.length).forEach((r) => (r.data || []).forEach((v) => vs.set(v.id_venta, n(v.monto_neto))));
+    rs.slice(ventasQ.length).forEach((r) => (r.data || []).forEach((g) => pg.add(g.id_pago)));
+    setBorrando({ id: x.id, nombre: x.nombre, ids, ventas: vs.size, monto: [...vs.values()].reduce((a, b) => a + b, 0), pagos: pg.size });
+  }
+  async function borrarLote() {
+    const b = borrando; if (!b) return;
+    setOcupado(true); setErr("");
+    // orden: primero lo que depende (ventas, pagos), luego productos, al final el lote
+    const pasos = [
+      () => sb.from("ventas").delete().eq("id_lote", b.id),
+      () => sb.from("pagos_socios").delete().eq("id_lote", b.id),
+      ...(b.ids.length ? [
+        () => sb.from("ventas").delete().in("id_producto", b.ids),
+        () => sb.from("pagos_socios").delete().in("id_producto", b.ids),
+        () => sb.from("productos").delete().in("id_producto", b.ids),
+      ] : []),
+      () => sb.from("lotes").delete().eq("id_lote", b.id),
+    ];
+    for (const paso of pasos) {
+      const { error } = await paso();
+      if (error) { setOcupado(false); setErr("No se pudo borrar: " + error.message + ". Puede que haya quedado a medias; recarga y revisa."); await cargar(); return; }
+    }
+    setOcupado(false); setBorrando(null); cargar();
   }
   const sinNombre = (x) => !x.nombre || x.nombre.trim() === x.id || /^lote\s*[a-z]?\d*$/i.test(x.nombre.trim());
 
@@ -109,8 +150,25 @@ export default function ResumenLotes({ onVerLote }) {
                 <button className="rounded-lg border border-white/20 px-4 text-sm" onClick={() => setEditando(null)}>Cancelar</button>
               </div>
             </div>
+          ) : borrando?.id === x.id ? (
+            <div className="space-y-2 border-t border-red-500/30 pt-3 text-sm">
+              <p className="text-red-300">
+                Vas a borrar <b>{x.nombre}</b> y con él: {borrando.ids.length} producto{borrando.ids.length === 1 ? "" : "s"}
+                {borrando.ventas > 0 && <>, <b>{borrando.ventas} venta{borrando.ventas === 1 ? "" : "s"} ({mxn(borrando.monto)})</b></>}
+                {borrando.pagos > 0 && <>, {borrando.pagos} pago{borrando.pagos === 1 ? "" : "s"} a socios</>}. No se puede deshacer.
+              </p>
+              {err && <p className="text-red-300">{err}</p>}
+              <div className="flex gap-2">
+                <button disabled={ocupado} className="flex-1 rounded-lg border border-red-500/60 py-2 text-red-300 active:bg-red-500/10" onClick={borrarLote}>{ocupado ? "Borrando…" : "Sí, borrar todo"}</button>
+                <button className="rounded-lg border border-white/20 px-4 text-sm" onClick={() => setBorrando(null)}>Cancelar</button>
+              </div>
+            </div>
           ) : (
-            <button className="border-t border-white/10 pt-3 text-sm text-amber-300" onClick={() => { setErr(""); setNombreNuevo(x.nombre || ""); setEditando(x.id); }}>✎ Renombrar este lote</button>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-sm">
+              {err && <p className="w-full text-red-300">{err}</p>}
+              <button className="text-amber-300" onClick={() => { setErr(""); setBorrando(null); setNombreNuevo(x.nombre || ""); setEditando(x.id); }}>✎ Renombrar este lote</button>
+              <button disabled={ocupado} className="text-red-400" onClick={() => pedirBorrar(x)}>🗑 Borrar lote</button>
+            </div>
           )}
         </div>
       ))}

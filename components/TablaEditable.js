@@ -52,6 +52,7 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
   }
 
   useEffect(() => {
+    try { const pq = new URLSearchParams(window.location.search).get("q"); if (pq) setQ(pq); } catch {}
     cargar();
     (async () => {
       const o = {};

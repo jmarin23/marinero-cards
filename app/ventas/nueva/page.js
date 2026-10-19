@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
+import Link from "next/link";
 import VentaRapida from "@/components/VentaRapida";
 
 // Vender = buscar lo que tienes en inventario, tocarlo, poner piezas/total y listo.
@@ -28,7 +29,10 @@ export default function NuevaVenta() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Vender</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Vender</h1>
+        <Link href="/ventas" className="text-sm text-amber-400">Últimas ventas →</Link>
+      </div>
       <p className="text-sm text-white/50">Toca lo que vendiste. Solo aparece lo que tienes en inventario.</p>
       {msg && <div className="card border-emerald-500/40 text-emerald-300">{msg}</div>}
 

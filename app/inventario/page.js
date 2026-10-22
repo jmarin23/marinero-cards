@@ -22,7 +22,12 @@ export default function Inventario() {
       {vista === "lotes"
         ? <><h1 className="text-2xl font-semibold">Inventario por lote</h1><ResumenLotes onVerLote={(id) => { setLote(id); setVista("productos"); }} /></>
         : <>
-            {lote && <button className="text-sm text-amber-300" onClick={() => setLote("")}>Viendo solo el lote {lote} · quitar filtro</button>}
+            {lote && (
+              <div className="space-y-3">
+                <button className="text-sm text-amber-300" onClick={() => setLote("")}>Viendo solo este lote · quitar filtro</button>
+                <ResumenLotes soloLote={lote} onVerLote={() => {}} onBorrado={() => setLote("")} />
+              </div>
+            )}
             <TablaEditable key={lote || "todos"} tabla="inventario" chipsIniciales={lote ? { id_lote: lote } : {}} />
           </>}
     </div>

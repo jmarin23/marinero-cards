@@ -47,7 +47,7 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
         _quien: tabla === "ventas" ? pp?.quien_puso_costo || "" : unico(ps.map((x) => x.quien_puso_costo)),
         _alcance: "", _nprod: ps.length };
     });
-    setFilas(cfg.filtro ? dec.filter(cfg.filtro) : dec);
+    setFilas(cfg.filtro && !chipsIniciales.id_lote ? dec.filter(cfg.filtro) : dec); // dentro de un lote se ve todo, incluso lo agotado
     setCargando(false);
   }
 

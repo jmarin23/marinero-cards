@@ -261,7 +261,7 @@ export default function Socios() {
     return (
       <div key={clave} className="rounded-lg border border-white/10 p-2 text-sm">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-white/70">{tipo === "Costo" ? "Costo que te regresa" : `Ganancia (${pctTxt(u.pct)})`}</span>
+          <span className="text-white/70">{tipo === "Costo" ? "Inversión" : `Ganancia (${pctTxt(u.pct)})`}</span>
           <span className={ok ? "text-emerald-400" : lleva ? "font-semibold text-amber-400" : sinVentas ? "text-white/50" : "text-sky-300"}>
             {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : sinVentas ? "Sin ventas capturadas aún" : `Pagado de más ${mxn(-falta)}`}
           </span>
@@ -370,7 +370,7 @@ export default function Socios() {
               </div>
               {(Math.abs(s.cpr) > TOL || s.pagCosto > TOL) && (
                 <div className="flex items-baseline justify-between">
-                  <span className="text-white/70">Costo que puso él</span>
+                  <span className="text-white/70">Inversión</span>
                   <span><b>{mxn(s.cpr)}</b> <span className="text-xs text-white/50">· pagado {mxn(s.pagCosto)} · falta </span><b className="text-amber-400">{mxn(s.cpr - s.pagCosto)}</b></span>
                 </div>
               )}

@@ -7,7 +7,7 @@ import { useRefrescar } from "@/lib/useRefrescar";
 const n = (x) => Number(x || 0);
 
 // Una tarjeta por lote con lo que importa del inventario: cuántas piezas quedan, a cuánto, y qué ganancia dejaría.
-export default function ResumenLotes({ onVerLote }) {
+export default function ResumenLotes({ onVerLote, soloLote, onBorrado }) {
   const sb = useMemo(() => supabaseBrowser(), []);
   const [datos, setDatos] = useState(null);
   const [q, setQ] = useState("");
@@ -94,12 +94,12 @@ export default function ResumenLotes({ onVerLote }) {
       const { error } = await paso();
       if (error) { setOcupado(false); setErr("No se pudo borrar: " + error.message + ". Puede que haya quedado a medias; recarga y revisa."); await cargar(); return; }
     }
-    setOcupado(false); setBorrando(null); cargar();
+    setOcupado(false); setBorrando(null); await cargar(); onBorrado?.();
   }
   const sinNombre = (x) => !x.nombre || x.nombre.trim() === x.id || /^lote\s*[a-z]?\d*$/i.test(x.nombre.trim());
 
   const t = (txt) => (txt || "").toLowerCase();
-  const vistas = filas.filter((x) => (todos || x.disp > 0) && (!q.trim() || t(x.nombre).includes(t(q.trim())) || t(x.id).includes(t(q.trim()))));
+  const vistas = soloLote ? filas.filter((x) => x.id === soloLote) : filas.filter((x) => (todos || x.disp > 0) && (!q.trim() || t(x.nombre).includes(t(q.trim())) || t(x.id).includes(t(q.trim()))));
   const tot = vistas.reduce((a, x) => ({ disp: a.disp + x.disp, piezas: a.piezas + x.piezas, costoDisp: a.costoDisp + x.costoDisp, reventaDisp: a.reventaDisp + x.reventaDisp }), { disp: 0, piezas: 0, costoDisp: 0, reventaDisp: 0 });
 
   if (!datos) return <p className="text-white/50">Cargando…</p>;
@@ -107,16 +107,16 @@ export default function ResumenLotes({ onVerLote }) {
 
   return (
     <div className="space-y-3">
-      <input className="input" placeholder="Buscar lote…" value={q} onChange={(e) => setQ(e.target.value)} />
-      <label className="flex items-center gap-2 text-sm text-white/60">
+      {!soloLote && <input className="input" placeholder="Buscar lote…" value={q} onChange={(e) => setQ(e.target.value)} />}
+      {!soloLote && <label className="flex items-center gap-2 text-sm text-white/60">
         <input type="checkbox" checked={todos} onChange={(e) => setTodos(e.target.checked)} /> Mostrar también los lotes agotados
-      </label>
-      <div className="grid grid-cols-3 gap-2">
+      </label>}
+      {!soloLote && <div className="grid grid-cols-3 gap-2">
         <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">Disponibles</div><div className="font-bold text-amber-400">{tot.disp.toLocaleString("es-MX")}</div></div>
         <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">A costo</div><div className="font-bold text-amber-400">{mxn(tot.costoDisp)}</div></div>
         <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">A reventa</div><div className="font-bold text-amber-400">{mxn(tot.reventaDisp)}</div></div>
-      </div>
-      <p className="text-xs text-white/40">{vistas.length} lotes · toca uno para ver sus productos</p>
+      </div>}
+      {!soloLote && <p className="text-xs text-white/40">{vistas.length} lotes · toca uno para ver sus productos</p>}
       {vistas.map((x) => (
         <div key={x.id} className="card space-y-3 active:bg-transparent">
           <button onClick={() => onVerLote(x.id)} className="block w-full space-y-3 text-left">
@@ -172,7 +172,7 @@ export default function ResumenLotes({ onVerLote }) {
           )}
         </div>
       ))}
-      {vistas.length === 0 && <p className="text-sm text-white/50">No hay lotes con inventario.</p>}
+      {vistas.length === 0 && !soloLote && <p className="text-sm text-white/50">No hay lotes con inventario.</p>}
     </div>
   );
 }

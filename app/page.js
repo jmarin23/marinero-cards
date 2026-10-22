@@ -1,19 +1,11 @@
 import PanelPagos from "@/components/PanelPagos";
 import { supabaseServer } from "@/lib/supabase/server";
-import { mxn, pct } from "@/lib/format";
+import { mxn } from "@/lib/format";
+import Resumen from "@/components/Resumen";
 import Link from "next/link";
 import Charts from "@/components/Charts";
 
 export const dynamic = "force-dynamic";
-
-function Stat({ label, value, tone }) {
-  return (
-    <div className="card">
-      <div className="text-xs uppercase tracking-wide text-white/50">{label}</div>
-      <div className={`mt-1 text-xl font-bold ${tone === "good" ? "text-emerald-400" : tone === "bad" ? "text-red-400" : "text-amber-400"}`}>{value}</div>
-    </div>
-  );
-}
 
 export default async function Tablero() {
   const sb = supabaseServer();
@@ -32,22 +24,16 @@ export default async function Tablero() {
 
   const dataLotes = (lotes.data || [])
     .filter((l) => num(l.costo) > 0)
-    .map((l) => ({ nombre: l.nombre.length > 28 ? l.nombre.slice(0, 27) + "…" : l.nombre, ganancia: num(l.ganancia_real) }));
+    .map((l) => ({ nombre: l.nombre, ganancia: num(l.ganancia_real), costo: num(l.costo) }));
   const dataCanales = (canales.data || []).map((c) => ({ canal: c.canal, monto: num(c.monto) }));
   const dataMeses = (meses.data || []).map((m) => ({ mes: m.mes, monto: num(m.monto) }));
   const dataCats = (cats.data || []).map((c) => ({ categoria: c.categoria, costo: num(c.costo) }));
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Tablero</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Tablero</h1>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Stat label="Invertido" value={mxn(r.total_invertido)} />
-        <Stat label="Vendido" value={mxn(r.total_vendido)} />
-        <Stat label="Inventario a costo" value={mxn(r.inventario_a_costo)} />
-        <Stat label="Posición" value={mxn(r.posicion)} tone={num(r.posicion) >= 0 ? "good" : "bad"} />
-        <div className="col-span-2"><Stat label="ROI" value={pct(r.roi)} tone={num(r.roi) >= 0 ? "good" : "bad"} /></div>
-      </div>
+      <Resumen r={r} meses={dataMeses} />
 
       {porRevisar.count > 0 && (
         <Link href="/revisar" className="card block border-amber-500/40 text-amber-300 active:bg-white/10">
@@ -58,8 +44,8 @@ export default async function Tablero() {
       <PanelPagos />
 
       {(estancados.data?.length > 0 || perdidas.data?.length > 0) && (
-        <section className="card space-y-3 border-amber-500/40">
-          <h2 className="font-semibold text-amber-400">Alertas</h2>
+        <section className="card space-y-3">
+          <h2 className="text-sm font-semibold text-white/80">Alertas</h2>
           {perdidas.data?.length > 0 && (
             <div>
               <div className="text-sm text-white/60">Lotes con pérdida</div>

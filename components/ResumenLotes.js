@@ -259,8 +259,9 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado, onCambio 
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-sm">
               {err && <p className="w-full text-red-300">{err}</p>}
               {aviso && aviso.startsWith(x.id + ":") && <p className="w-full text-emerald-300">{aviso}</p>}
-              <button className="text-amber-300" onClick={() => { setErr(""); setBorrando(null); setNombreNuevo(x.nombre || ""); setEditando(x.id); }}>✎ Renombrar</button>
-              <button className="text-amber-300" onClick={() => { setErr(""); setAviso(""); setBorrando(null); setModo("tc"); setAjustando(x.id); }}>💱 Ajustar costos</button>
+              <button className="text-amber-300" onClick={() => { setErr(""); setBorrando(null); setNombreNuevo(x.nombre || ""); setEditando(x.id); }}>Renombrar</button>
+              <a className="font-medium text-amber-300" href={`/compras/nueva?lote=${x.id}`}>✎ Editar compra</a>
+              <button className="text-amber-300/80" onClick={() => { setErr(""); setAviso(""); setBorrando(null); setModo("tc"); setAjustando(x.id); }}>💱 Ajuste rápido</button>
               <button disabled={ocupado} className="text-red-400" onClick={() => pedirBorrar(x)}>🗑 Borrar lote</button>
             </div>
           )}

@@ -5,9 +5,10 @@ import { mxn } from "@/lib/format";
 import { useRefrescar } from "@/lib/useRefrescar";
 
 const n = (x) => Number(x || 0);
+const r2 = (x) => Math.round(x * 100) / 100;
 
 // Una tarjeta por lote con lo que importa del inventario: cuántas piezas quedan, a cuánto, y qué ganancia dejaría.
-export default function ResumenLotes({ onVerLote, soloLote, onBorrado }) {
+export default function ResumenLotes({ onVerLote, soloLote, onBorrado, onCambio }) {
   const sb = useMemo(() => supabaseBrowser(), []);
   const [datos, setDatos] = useState(null);
   const [q, setQ] = useState("");
@@ -17,6 +18,14 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado }) {
   const [err, setErr] = useState("");
   const [borrando, setBorrando] = useState(null); // { id, nombre, prods, ventas, monto, pagos } esperando confirmación
   const [ocupado, setOcupado] = useState(false);
+  // ajustar costos del lote (tipo de cambio o monto extra repartido)
+  const [ajustando, setAjustando] = useState(null); // id del lote
+  const [modo, setModo] = useState("tc");           // "tc" | "monto"
+  const [tcViejo, setTcViejo] = useState("");
+  const [tcNuevo, setTcNuevo] = useState("");
+  const [incluirExtras, setIncluirExtras] = useState(true);
+  const [monto, setMonto] = useState("");
+  const [aviso, setAviso] = useState("");
 
   const cargar = async () => {
     const [p, l] = await Promise.all([
@@ -57,6 +66,45 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado }) {
     setDatos((d) => ({ ...d, lotes: d.lotes.map((l) => (l.id_lote === id ? { ...l, nombre } : l)) }));
     setEditando(null);
   }
+  // Qué le pasaría a cada producto del lote con el ajuste escrito (sin guardar nada todavía)
+  function calcularAjuste(id) {
+    const ps = datos.prods.filter((p) => p.id_lote === id);
+    const antes = ps.reduce((t, p) => t + n(p.costo_total), 0);
+    let cambios;
+    if (modo === "tc") {
+      const a = Number(tcViejo), b = Number(tcNuevo);
+      if (!(a > 0 && b > 0)) return { error: "Escribe el tipo de cambio que pusiste y el correcto" };
+      cambios = ps.filter((p) => incluirExtras || p.categoria !== "Costo extra").map((p) => ({ id: p.id_producto, nuevo: r2((n(p.costo_total) * b) / a) }));
+    } else {
+      const m = Number(monto);
+      if (!m) return { error: "Escribe cuánto sumar (o restar, con signo −)" };
+      const base = ps.filter((p) => p.categoria !== "Costo extra" && n(p.costo_total) > 0);
+      const suma = base.reduce((t, p) => t + n(p.costo_total), 0);
+      if (!suma) return { error: "Este lote no tiene productos con costo para repartir" };
+      let resto = m;
+      cambios = base.map((p, i) => {
+        const parte = i === base.length - 1 ? resto : r2((m * n(p.costo_total)) / suma);
+        resto = r2(resto - parte);
+        return { id: p.id_producto, nuevo: r2(n(p.costo_total) + parte) };
+      });
+    }
+    if (cambios.some((c) => c.nuevo < 0)) return { error: "Con ese ajuste algún producto quedaría con costo negativo" };
+    const delta = cambios.reduce((t, c) => t + c.nuevo - n(ps.find((p) => p.id_producto === c.id).costo_total), 0);
+    return { cambios, antes, despues: r2(antes + delta), n: cambios.length };
+  }
+  async function aplicarAjuste(id) {
+    const calc = calcularAjuste(id);
+    if (calc.error) return setErr(calc.error);
+    setOcupado(true); setErr("");
+    const rs = await Promise.all(calc.cambios.map((c) => sb.from("productos").update({ costo_total: c.nuevo }).eq("id_producto", c.id)));
+    setOcupado(false);
+    const fallo = rs.find((r) => r.error);
+    await cargar(); onCambio?.();
+    if (fallo) return setErr("Algunos productos no se actualizaron: " + fallo.error.message + ". Revisa los costos.");
+    setAjustando(null); setTcViejo(""); setTcNuevo(""); setMonto("");
+    setAviso(`${id}: el costo del lote pasó de ${mxn(calc.antes)} a ${mxn(calc.despues)}.`);
+  }
+
   // Cuenta qué se llevaría el lote antes de borrarlo
   async function pedirBorrar(x) {
     setErr(""); setOcupado(true);
@@ -105,6 +153,48 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado }) {
   if (!datos) return <p className="text-white/50">Cargando…</p>;
   const Dato = ({ l, v, cls = "" }) => (<div><div className="text-[11px] uppercase tracking-wide text-white/50">{l}</div><div className={`font-semibold ${cls}`}>{v}</div></div>);
 
+  // se llama como función (no como componente) para no perder el foco al escribir
+  const PanelAjuste = ({ x }) => {
+    const calc = calcularAjuste(x.id);
+    const chipM = (m, t) => (
+      <button className={`flex-1 rounded-lg border py-2 text-sm ${modo === m ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`} onClick={() => { setModo(m); setErr(""); }}>{t}</button>
+    );
+    return (
+      <div className="space-y-3 border-t border-white/10 pt-3 text-sm">
+        <div className="flex gap-2">{chipM("tc", "Tipo de cambio")}{chipM("monto", "Sumar / restar monto")}</div>
+        {modo === "tc" ? (
+          <>
+            <p className="text-xs text-white/50">Corrige el tipo de cambio de este lote: el costo de cada producto se recalcula con el correcto (incluye aduana y tax, porque van sobre el mismo precio).</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-white/60">Puse
+                <input className="input mt-1 !py-2" type="number" step="any" inputMode="decimal" placeholder="18" value={tcViejo} onChange={(e) => setTcViejo(e.target.value)} />
+              </label>
+              <label className="text-xs text-white/60">Debió ser
+                <input className="input mt-1 !py-2" type="number" step="any" inputMode="decimal" placeholder="17.3" value={tcNuevo} onChange={(e) => setTcNuevo(e.target.value)} />
+              </label>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-white/60">
+              <input type="checkbox" checked={incluirExtras} onChange={(e) => setIncluirExtras(e.target.checked)} /> Aplicar también a los costos extra del lote (Tax, aduana…)
+            </label>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-white/50">Por ejemplo, la aduana cobró más. El monto se reparte entre los productos según lo que cuesta cada uno, así sube su costo por pieza. Con signo − resta.</p>
+            <input className="input !py-2" type="number" step="any" inputMode="decimal" placeholder="Monto en MXN (ej. 1800 o −300)" value={monto} onChange={(e) => setMonto(e.target.value)} />
+          </>
+        )}
+        {calc.error
+          ? <p className="text-xs text-white/40">{calc.error}</p>
+          : <p className="rounded-lg bg-white/5 p-2 text-xs text-white/70">Costo del lote: <b>{mxn(calc.antes)}</b> → <b className="text-amber-300">{mxn(calc.despues)}</b> ({calc.despues - calc.antes >= 0 ? "+" : "−"}{mxn(Math.abs(calc.despues - calc.antes))}) · {calc.n} producto{calc.n === 1 ? "" : "s"}</p>}
+        {err && <p className="text-red-300">{err}</p>}
+        <div className="flex gap-2">
+          <button disabled={ocupado || !!calc.error} className="btn flex-1 !py-2 disabled:opacity-40" onClick={() => aplicarAjuste(x.id)}>{ocupado ? "Guardando…" : "Aplicar ajuste"}</button>
+          <button className="rounded-lg border border-white/20 px-4 text-sm" onClick={() => { setAjustando(null); setErr(""); }}>Cancelar</button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
       {!soloLote && <input className="input" placeholder="Buscar lote…" value={q} onChange={(e) => setQ(e.target.value)} />}
@@ -150,6 +240,8 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado }) {
                 <button className="rounded-lg border border-white/20 px-4 text-sm" onClick={() => setEditando(null)}>Cancelar</button>
               </div>
             </div>
+          ) : ajustando === x.id ? (
+            PanelAjuste({ x })
           ) : borrando?.id === x.id ? (
             <div className="space-y-2 border-t border-red-500/30 pt-3 text-sm">
               <p className="text-red-300">
@@ -164,9 +256,11 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado }) {
               </div>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-sm">
               {err && <p className="w-full text-red-300">{err}</p>}
-              <button className="text-amber-300" onClick={() => { setErr(""); setBorrando(null); setNombreNuevo(x.nombre || ""); setEditando(x.id); }}>✎ Renombrar este lote</button>
+              {aviso && aviso.startsWith(x.id + ":") && <p className="w-full text-emerald-300">{aviso}</p>}
+              <button className="text-amber-300" onClick={() => { setErr(""); setBorrando(null); setNombreNuevo(x.nombre || ""); setEditando(x.id); }}>✎ Renombrar</button>
+              <button className="text-amber-300" onClick={() => { setErr(""); setAviso(""); setBorrando(null); setModo("tc"); setAjustando(x.id); }}>💱 Ajustar costos</button>
               <button disabled={ocupado} className="text-red-400" onClick={() => pedirBorrar(x)}>🗑 Borrar lote</button>
             </div>
           )}

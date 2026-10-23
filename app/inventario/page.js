@@ -9,6 +9,7 @@ const guardar = (v) => { try { localStorage.setItem("vistaInventario", v); } cat
 export default function Inventario() {
   const [vista, setVista] = useState("productos");
   const [lote, setLote] = useState("");
+  const [tick, setTick] = useState(0); // para recargar la tabla de abajo cuando se ajustan costos
   useEffect(() => { setVista(leer()); }, []);
   const cambiar = (v) => { setVista(v); guardar(v); if (v === "lotes") setLote(""); };
   const chip = (act) => `flex-1 rounded-lg border py-2 text-sm ${act ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`;
@@ -25,10 +26,10 @@ export default function Inventario() {
             {lote && (
               <div className="space-y-3">
                 <button className="text-sm text-amber-300" onClick={() => setLote("")}>Viendo solo este lote · quitar filtro</button>
-                <ResumenLotes soloLote={lote} onVerLote={() => {}} onBorrado={() => setLote("")} />
+                <ResumenLotes soloLote={lote} onVerLote={() => {}} onBorrado={() => setLote("")} onCambio={() => setTick((t) => t + 1)} />
               </div>
             )}
-            <TablaEditable key={lote || "todos"} tabla="inventario" chipsIniciales={lote ? { id_lote: lote } : {}} />
+            <TablaEditable key={`${lote || "todos"}-${tick}`} tabla="inventario" chipsIniciales={lote ? { id_lote: lote } : {}} />
           </>}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Volver from "@/components/Volver";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { listaSocios } from "@/lib/socios";
 import Combo from "@/components/Combo";
@@ -170,7 +170,7 @@ export default function NuevaCompra() {
     <div className="space-y-5">
       {editId ? (
         <div>
-          <Link href="/inventario" className="text-sm text-amber-300">← Volver al inventario</Link>
+          <Volver a="/inventario" />
           <h1 className="mt-1 text-2xl font-semibold">Editar compra</h1>
           <p className="text-xs text-white/50">{editId} · cambia el tipo de cambio, la aduana, el envío o los precios y se recalcula el costo de todos sus productos.</p>
         </div>

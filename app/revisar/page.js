@@ -1,4 +1,5 @@
 "use client";
+import Volver from "@/components/Volver";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
@@ -100,6 +101,7 @@ export default function Revisar() {
 
   return (
     <div className="space-y-4">
+      <Volver a="/" />
       <h1 className="text-2xl font-semibold">Revisar ventas</h1>
       <p className="text-sm text-white/50">
         <b className="text-white/70">Por corregir</b>: ventas sin producto, sin canal o con aviso. <b className="text-white/70">Por empatar</b>: ya las capturaste, falta que entre el pago de TikTok (se empatan solas al importar).

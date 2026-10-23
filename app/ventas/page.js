@@ -1,4 +1,5 @@
 "use client";
+import Volver from "@/components/Volver";
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -67,6 +68,7 @@ export default function UltimasVentas() {
 
   return (
     <div className="space-y-4">
+      <Volver a="/ventas/nueva" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Últimas ventas</h1>
         <Link href="/ventas/nueva" className="text-sm text-amber-400">+ Nueva venta</Link>

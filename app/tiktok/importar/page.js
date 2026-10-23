@@ -1,4 +1,5 @@
 "use client";
+import Volver from "@/components/Volver";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -170,6 +171,7 @@ export default function ImportarTikTok() {
 
   return (
     <div className="space-y-4">
+      <Volver a="/datos" />
       <h1 className="text-2xl font-semibold">Importar TikTok</h1>
       <p className="text-sm text-white/50">Sube el reporte tal cual lo bajas de TikTok. Yo leo solo lo que sirve (fecha, producto, monto) y empato lo que ya tenías capturado; lo que sobra lo asignas aquí mismo.</p>
       {msg && <div className={`card text-sm ${msg.ok ? "border-emerald-500/40 text-emerald-300" : "border-red-500/40 text-red-300"}`}>{msg.t}</div>}

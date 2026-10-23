@@ -1,4 +1,5 @@
 "use client";
+import Volver from "@/components/Volver";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
@@ -119,9 +120,9 @@ export default function ConciliarPagos() {
 
   return (
     <div className="space-y-4 pb-24">
+      <Volver a="/datos" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Conciliar pagos de TikTok</h1>
-        <Link href="/datos" className="text-sm text-amber-400">← Datos</Link>
       </div>
       <p className="text-sm text-white/50">
         Sube el reporte de <b className="text-white/70">Ingresos</b> de TikTok Shop (el .xlsx con &quot;Detalles del pedido&quot;). Las ventas que cuadren en monto y fecha se marcan <b className="text-white/70">Pagado</b>. No crea ventas ni toca socios.

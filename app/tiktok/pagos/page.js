@@ -196,6 +196,29 @@ export default function ConciliarPagos() {
             </div>
           </details>
 
+          {res.sinReporte.length > 0 && (
+            <details className="card !p-0 border-amber-500/30" open>
+              <summary className="cursor-pointer p-3 text-sm">
+                <b>Marcadas Pagado, pero no salen en este reporte ({res.sinReporte.length})</b>
+                <span className="text-white/50"> · {res.sinReporte.reduce((t, v) => t + Number(v.cantidad || 0), 0)} pzas · pueden estar duplicadas, de más, o ser de otro reporte</span>
+              </summary>
+              <div className="divide-y divide-white/10 border-t border-white/10">
+                {[...res.sinReporte].sort((a, b) => String(a.producto_nombre).localeCompare(String(b.producto_nombre)) || String(a.fecha || "").localeCompare(String(b.fecha || ""))).map((v) => (
+                  <div key={v.id_venta} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm">{v.producto_nombre || "Venta suelta"}</div>
+                      <div className="text-xs text-white/50">{v.id_venta} · {f(v.fecha)} · {Number(v.cantidad)} pza{Number(v.cantidad) === 1 ? "" : "s"} · {v.canal || "sin canal"}</div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-sm font-semibold">{mxn(v.monto_neto)}</div>
+                      <Link href={`/datos/ventas?q=${v.id_venta}`} className="text-xs text-white/40 underline">Editar</Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
           {res.ya.length > 0 && <p className="text-xs text-white/40">{res.ya.length} pedidos de este archivo ya estaban conciliados antes.</p>}
           {res.enEspera.length > 0 && <p className="text-xs text-white/40">{res.enEspera.length} ventas siguen &quot;En espera&quot;: aún no aparecen en este reporte.</p>}
 

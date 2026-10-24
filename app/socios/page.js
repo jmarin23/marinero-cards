@@ -124,14 +124,26 @@ export default function Socios() {
       gTotal += g;
       if (esSocio(p.socio)) { gConSocio += g; partesSocios += g * pctDe(p.socio); } else gMia += g;
     }
+    // mi ganancia por lote: 100% si es mío, (1 − %) si hay socio
+    const L = new Map();
+    for (const p of prods) {
+      const k = p.id_lote || `P|${p.id_producto}`;
+      if (!L.has(k)) L.set(k, { k, nombre: p.id_lote ? (lotes[p.id_lote] || p.id_lote) : p.nombre, socios: new Set(), g: 0, mia: 0, vend: 0, productos: [] });
+      const l = L.get(k), g = n(p.ganancia_real), mia = esSocio(p.socio) ? g * (1 - pctDe(p.socio)) : g;
+      l.g += g; l.mia += mia; l.vend += n(p.vendidas); l.productos.push({ ...p, mia });
+      if (esSocio(p.socio)) l.socios.add(`${p.socio} ${Math.round(pctDe(p.socio) * 100)}%`);
+    }
+    const todos = [...L.values()];
+    const lotesYo = todos.filter((l) => l.vend > 0 || Math.abs(l.g) > 0.005).sort((a, b) => b.mia - a.mia);
+    const sinVentas = todos.length - lotesYo.length;
     const corresponde = resumen.reduce((t, s) => t + s.cpr + s.parte, 0);
     const pagado = resumen.reduce((t, s) => t + s.pagado, 0);
     const deboA = resumen.filter((s) => s.debo > TOL);
     return {
       gTotal, gConSocio, gMia, partesSocios, miParte: gConSocio - partesSocios, miGanancia: gTotal - partesSocios,
-      corresponde, pagado, deboA, porPagar: deboA.reduce((t, s) => t + s.debo, 0),
+      lotesYo, sinVentas, corresponde, pagado, deboA, porPagar: deboA.reduce((t, s) => t + s.debo, 0),
     };
-  }, [prods, pcts, pctBase, resumen]);
+  }, [prods, pcts, pctBase, resumen, lotes]);
 
   const nombres = ["Todos", ...resumen.map((s) => s.socio)];
 
@@ -203,13 +215,13 @@ export default function Socios() {
 
   const pctTxt = (p) => `${Math.round(p * 10000) / 100}%`;
   const diaMes = (d) => (d ? d.split("-").slice(1).reverse().join("/") : "s/f");
-  const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca, toca_a, accion }) => (
+  const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca, toca_a, tocaTxt, accion }) => (
     <div>
       <div className={`flex items-start justify-between gap-3 ${gris ? "opacity-60" : ""}`}>
         <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}</span>
         <span className="shrink-0 text-right">
           <span className={rojo ? "text-red-400" : ""}>{mxn(v)}</span>
-          {toca != null && <span className={`block ${toca < -0.005 ? "text-red-400" : "text-amber-300"}`}>Le toca a {toca_a} {mxn(toca)}</span>}
+          {toca != null && <span className={`block ${toca < -0.005 ? "text-red-400" : "text-amber-300"}`}>{tocaTxt || `Le toca a ${toca_a}`} {mxn(toca)}</span>}
         </span>
       </div>
       {accion && <button className="mt-1 text-amber-300 underline" onClick={accion.f}>{accion.t}</button>}
@@ -382,25 +394,48 @@ export default function Socios() {
                 <b className={yo.miGanancia < -0.005 ? "text-red-400" : "text-emerald-400"}>{mxn(yo.miGanancia)}</b>
               </div>
             </div>
-            <details className="mt-2 text-xs">
-              <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
-              <div className="mt-2 space-y-1 text-white/60">
-                {yo.gConSocio !== 0 && (
-                  <div className="flex justify-between gap-3"><span>Lotes con socio: ganancia {mxn(yo.gConSocio)}, mi parte</span><span>{mxn(yo.miParte)}</span></div>
-                )}
-                <div className="flex justify-between gap-3"><span>Mis lotes sin socio (100% mío)</span><span>{mxn(yo.gMia)}</span></div>
-                <div className="flex justify-between border-t border-white/10 pt-1 font-semibold text-white/80"><span>Mi ganancia</span><span>{mxn(yo.miGanancia)}</span></div>
-                {yo.deboA.length > 0 && (
-                  <div className="space-y-1 border-t border-white/10 pt-2">
-                    <div className="text-white/40">A quién le debo</div>
+            <div className="mt-3 border-t border-white/10 pt-2">
+              <div className="mb-1 text-xs uppercase text-white/50">Mi ganancia por lote</div>
+              <div className="space-y-1">
+                {yo.lotesYo.map((l) => (
+                  <details key={l.k} className="rounded-lg border border-white/10 px-2 py-1.5 text-sm">
+                    <summary className="flex cursor-pointer items-start justify-between gap-3">
+                      <span className="min-w-0">
+                        <span className="block truncate text-white/80">{l.nombre}</span>
+                        <span className="block text-xs text-white/40">{l.socios.size ? `Con ${[...l.socios].join(", ")}` : "Solo mío"} · ganancia del lote {mxn(l.g)}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-xs text-white/50">Me toca</span>
+                        <b className={l.mia < -0.005 ? "text-red-400" : "text-emerald-400"}>{mxn(l.mia)}</b>
+                      </span>
+                    </summary>
+                    <div className="mt-2 space-y-2 text-xs">
+                      {l.productos.map((p) => {
+                        const extra = p.categoria === "Costo extra";
+                        const vend = n(p.vendidas);
+                        return (
+                          <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={p.mia} tocaTxt="Me toca" rojo={n(p.ganancia_real) < -0.005}
+                            ventas={extra ? null : ventasPor[p.id_producto]}
+                            sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(n(p.venta_total) - n(p.ganancia_real))}`} />
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+                {yo.lotesYo.length === 0 && <p className="text-xs text-white/50">Aún no hay ventas capturadas.</p>}
+              </div>
+              {yo.sinVentas > 0 && <p className="mt-1 text-xs text-white/40">{yo.sinVentas} lotes sin ventas aún no se muestran.</p>}
+              {yo.deboA.length > 0 && (
+                <details className="mt-2 text-xs">
+                  <summary className="cursor-pointer text-amber-300/80">A quién le debo</summary>
+                  <div className="mt-1 space-y-1 text-white/60">
                     {yo.deboA.map((s) => (
                       <div key={s.socio} className="flex justify-between gap-3"><span>{s.socio}</span><span className="text-amber-300">{mxn(s.debo)}</span></div>
                     ))}
                   </div>
-                )}
-                <p className="pt-1 text-white/40">La ganancia cuenta solo lo ya vendido y ya descuenta el costo de lo vendido. Lo que le toca a cada socio sale de su % en su tarjeta.</p>
-              </div>
-            </details>
+                </details>
+              )}
+            </div>
           </div>
         )}
         {resumen.map((s) => (

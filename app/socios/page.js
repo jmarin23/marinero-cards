@@ -116,6 +116,23 @@ export default function Socios() {
     return { unidades: [...U.values()], resumen, avisos };
   }, [prods, pagos, pctBase, pcts, registrados, lotes]);
 
+  // ---- Yo: lo que les debo a los socios y lo que me queda de ganancia ----
+  const yo = useMemo(() => {
+    let gTotal = 0, gConSocio = 0, partesSocios = 0, gMia = 0;
+    for (const p of prods) {
+      const g = n(p.ganancia_real);
+      gTotal += g;
+      if (esSocio(p.socio)) { gConSocio += g; partesSocios += g * pctDe(p.socio); } else gMia += g;
+    }
+    const corresponde = resumen.reduce((t, s) => t + s.cpr + s.parte, 0);
+    const pagado = resumen.reduce((t, s) => t + s.pagado, 0);
+    const deboA = resumen.filter((s) => s.debo > TOL);
+    return {
+      gTotal, gConSocio, gMia, partesSocios, miParte: gConSocio - partesSocios, miGanancia: gTotal - partesSocios,
+      corresponde, pagado, deboA, porPagar: deboA.reduce((t, s) => t + s.debo, 0),
+    };
+  }, [prods, pcts, pctBase, resumen]);
+
   const nombres = ["Todos", ...resumen.map((s) => s.socio)];
 
   const lineas = (u) => {
@@ -347,6 +364,45 @@ export default function Socios() {
       )}
 
       <section className="space-y-2">
+        {prods.length > 0 && (
+          <div className="card border-sky-400/40">
+            <div className="flex items-baseline justify-between">
+              <span className="font-semibold">Yo</span>
+              <span className={yo.porPagar > TOL ? "font-bold text-amber-400" : "text-emerald-400"}>
+                {yo.porPagar > TOL ? `Debo ${mxn(yo.porPagar)}` : "Al corriente con los socios"}
+              </span>
+            </div>
+            <div className="mt-2 space-y-1 text-sm">
+              <div className="flex items-baseline justify-between">
+                <span className="text-white/70">Lo que debo a socios</span>
+                <span><b>{mxn(yo.corresponde)}</b> <span className="text-xs text-white/50">· pagado {mxn(yo.pagado)} · falta </span><b className="text-amber-400">{mxn(Math.max(yo.corresponde - yo.pagado, 0))}</b></span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-white/70">Mi ganancia</span>
+                <b className={yo.miGanancia < -0.005 ? "text-red-400" : "text-emerald-400"}>{mxn(yo.miGanancia)}</b>
+              </div>
+            </div>
+            <details className="mt-2 text-xs">
+              <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
+              <div className="mt-2 space-y-1 text-white/60">
+                {yo.gConSocio !== 0 && (
+                  <div className="flex justify-between gap-3"><span>Lotes con socio: ganancia {mxn(yo.gConSocio)}, mi parte</span><span>{mxn(yo.miParte)}</span></div>
+                )}
+                <div className="flex justify-between gap-3"><span>Mis lotes sin socio (100% mío)</span><span>{mxn(yo.gMia)}</span></div>
+                <div className="flex justify-between border-t border-white/10 pt-1 font-semibold text-white/80"><span>Mi ganancia</span><span>{mxn(yo.miGanancia)}</span></div>
+                {yo.deboA.length > 0 && (
+                  <div className="space-y-1 border-t border-white/10 pt-2">
+                    <div className="text-white/40">A quién le debo</div>
+                    {yo.deboA.map((s) => (
+                      <div key={s.socio} className="flex justify-between gap-3"><span>{s.socio}</span><span className="text-amber-300">{mxn(s.debo)}</span></div>
+                    ))}
+                  </div>
+                )}
+                <p className="pt-1 text-white/40">La ganancia cuenta solo lo ya vendido y ya descuenta el costo de lo vendido. Lo que le toca a cada socio sale de su % en su tarjeta.</p>
+              </div>
+            </details>
+          </div>
+        )}
         {resumen.map((s) => (
           <div key={s.socio} className="card">
             <div className="flex items-baseline justify-between">

@@ -226,6 +226,7 @@ export default function Socios() {
     setNuevo(null); cargar();
   }
 
+  const pctG = (g, costo) => (costo > TOL ? ` · ganancia ${g >= 0 ? "+" : "−"}${Math.abs(Math.round((g / costo) * 100))}% sobre el costo` : "");
   const pctTxt = (p) => `${Math.round(p * 10000) / 100}%`;
   const diaMes = (d) => (d ? d.split("-").slice(1).reverse().join("/") : "s/f");
   const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca, toca_a, tocaTxt, accion }) => (
@@ -276,6 +277,7 @@ export default function Socios() {
       );
     }
     const gTotal = u.productos.reduce((t, p) => t + n(p.ganancia_real), 0);
+    const costoLote = u.productos.reduce((t, p) => t + n(p.venta_total) - n(p.ganancia_real), 0);
     return (
       <div className="mt-2 space-y-2 text-xs">
         {u.productos.map((p) => {
@@ -284,11 +286,14 @@ export default function Socios() {
           const costoVend = n(p.venta_total) - n(p.ganancia_real);
           return (
             <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={n(p.ganancia_real) * u.pct} toca_a={u.socio} rojo={n(p.ganancia_real) < -0.005} ventas={extra ? null : ventasPor[p.id_producto]}
-              sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(costoVend)}`} />
+              sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(costoVend)}${pctG(n(p.ganancia_real), costoVend)}`} />
           );
         })}
-        <div className="flex justify-between border-t border-white/10 pt-1"><span>Ganancia del lote</span><span>{mxn(gTotal)}</span></div>
-        <div className="flex justify-between font-semibold"><span>Le toca a {u.socio} ({pctTxt(u.pct)}) del lote</span><span>{mxn(debe)}</span></div>
+        <div className="border-t border-white/10 pt-1">
+          <div className="flex justify-between"><span>Ganancia del lote (ventas − costo de lo vendido)</span><span>{mxn(gTotal)}</span></div>
+          {pctG(gTotal, costoLote).length > 0 && <div className="text-white/40">{pctG(gTotal, costoLote).replace(" · ", "")}</div>}
+        </div>
+        <div className="flex justify-between font-semibold"><span>Reparto: {u.socio} se lleva {pctTxt(u.pct)} y yo {pctTxt(1 - u.pct)}. Le toca a {u.socio}</span><span>{mxn(debe)}</span></div>
       </div>
     );
   }
@@ -303,11 +308,12 @@ export default function Socios() {
     return (
       <div key={clave} className="rounded-lg border border-white/10 p-2 text-sm">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-white/70">{tipo === "Costo" ? "Inversión" : `Ganancia (${pctTxt(u.pct)})`}</span>
+          <span className="text-white/70">{tipo === "Costo" ? "Inversión" : "Ganancia"}</span>
           <span className={ok ? "text-emerald-400" : lleva ? "font-semibold text-amber-400" : sinVentas ? "text-white/50" : "text-sky-300"}>
             {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : sinVentas ? "Sin ventas capturadas aún" : `Pagado de más ${mxn(-falta)}`}
           </span>
         </div>
+        {tipo !== "Costo" && <div className="mt-1 text-xs text-white/50">Reparto de la ganancia: {u.socio} {pctTxt(u.pct)} · yo {pctTxt(1 - u.pct)}</div>}
         <div className="mt-1 text-xs text-white/50">Corresponde {mxn(debe)} · pagado {mxn(pagado)}</div>
         <details className="mt-1 text-xs">
           <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
@@ -350,6 +356,7 @@ export default function Socios() {
             {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : `Pagado de más ${mxn(-falta)}`}
           </span>
         </div>
+        {tipo !== "Costo" && <div className="mt-1 text-xs text-white/50">{l.socios.size ? `Reparto de la ganancia: ${[...l.socios].join(", ")} para el socio · el resto es mío` : "Todo es mío (sin socio)"}</div>}
         <div className="mt-1 text-xs text-white/50">{tipo === "Costo" ? `Costo del lote ${mxn(debe)} · pagado ${mxn(pagado)}` : `Me toca ${mxn(debe)} · me pagué ${mxn(pagado)}`}</div>
         <details className="mt-1 text-xs">
           <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
@@ -363,7 +370,7 @@ export default function Socios() {
               ) : (
                 <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={p.mia} tocaTxt="Me toca" rojo={n(p.ganancia_real) < -0.005}
                   ventas={extra ? null : ventasPor[p.id_producto]}
-                  sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(n(p.venta_total) - n(p.ganancia_real))}`} />
+                  sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(n(p.venta_total) - n(p.ganancia_real))}${pctG(n(p.ganancia_real), n(p.venta_total) - n(p.ganancia_real))}`} />
               );
             })}
           </div>
@@ -408,7 +415,7 @@ export default function Socios() {
           <div className="font-semibold">Agregar socio</div>
           <input className="input" placeholder="Nombre del socio" autoFocus value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
           <label className="flex items-center justify-between text-sm text-white/70">
-            % de la ganancia para él
+            Reparto: % de la ganancia que se lleva él
             <span className="flex items-center gap-1">
               <input className="input !w-20 text-right" type="number" min="0" max="100" placeholder={String(Math.round(pctBase * 100))}
                 value={nuevo.pct} onChange={(e) => setNuevo({ ...nuevo, pct: e.target.value })} />%
@@ -425,7 +432,7 @@ export default function Socios() {
       {msg && <p className="text-sm text-red-300">{msg}</p>}
 
       <label className="card flex items-center justify-between text-sm text-white/70">
-        % por defecto (socios sin % propio)
+        Reparto por defecto: % de la ganancia que se lleva el socio
         <span className="flex items-center gap-1">
           <input className="input !w-20 text-right" type="number" min="0" max="100" value={Math.round(pctBase * 100)}
             onChange={(e) => setPctBase(Number(e.target.value) / 100)} onBlur={(e) => guardarPctBase(Number(e.target.value) / 100)} />%
@@ -453,7 +460,7 @@ export default function Socios() {
               </span>
             </div>
             <label className="mt-1 flex items-center justify-between text-xs text-white/50">
-              % de la ganancia para {s.socio}
+              Reparto: % de la ganancia que se lleva {s.socio}
               <span className="flex items-center gap-1">
                 <input className="input !w-16 !py-1 text-right" type="number" min="0" max="100" value={Math.round(pctDe(s.socio) * 100)}
                   onChange={(e) => setPcts({ ...pcts, [s.socio]: Number(e.target.value) / 100 })}

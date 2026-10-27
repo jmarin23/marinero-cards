@@ -147,7 +147,7 @@ export default function Socios() {
     const todos = [...L.values()];
     const lotesYo = todos.filter((l) => l.vend > 0 || Math.abs(l.g) > 0.005 || l.puse > 0.005).sort((a, b) => b.mia - a.mia);
     const sinVentas = 0;
-    const totYo = { inv: todos.reduce((t, l) => t + l.puseVend, 0), pagInv: todos.reduce((t, l) => t + l.pagCosto, 0), gan: todos.reduce((t, l) => t + l.mia, 0), pagGan: todos.reduce((t, l) => t + l.pagGan, 0) };
+    const totYo = { inv: todos.reduce((t, l) => t + l.puse, 0), pagInv: todos.reduce((t, l) => t + l.pagCosto, 0), gan: todos.reduce((t, l) => t + l.mia, 0), pagGan: todos.reduce((t, l) => t + l.pagGan, 0) };
     const puse = todos.reduce((t, l) => t + l.puse, 0), puseInv = todos.reduce((t, l) => t + l.puseInv, 0);
     const corresponde = resumen.reduce((t, s) => t + s.cpr + s.parte, 0);
     const pagado = resumen.reduce((t, s) => t + s.pagado, 0);
@@ -182,7 +182,7 @@ export default function Socios() {
       id_pago: "PG" + String(max + 1).padStart(4, "0"),
       fecha: new Date().toISOString().slice(0, 10),
       socio: u.socio, id_producto: u.idProducto, id_lote: u.lote, tipo, monto: r2(monto),
-      notas: (u.lote ? "Lote completo | " : "") + (tipo === "Costo" ? "Costo regresado" : "Ganancia pagada"),
+      notas: (u.lote ? "Lote completo | " : "") + (tipo === "Costo" ? (u.socio === "Yo" ? "Costo pagado" : "Costo regresado") : (u.socio === "Yo" ? "Me pagué ganancia" : "Ganancia pagada")),
     });
     setOcupado(null);
     if (error) setMsg(error.message); else { setMontos((m) => ({ ...m, [u.k + tipo]: "" })); cargar(); }
@@ -350,7 +350,7 @@ export default function Socios() {
             {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : `Pagado de más ${mxn(-falta)}`}
           </span>
         </div>
-        <div className="mt-1 text-xs text-white/50">Me toca {mxn(debe)} · me pagué {mxn(pagado)}</div>
+        <div className="mt-1 text-xs text-white/50">{tipo === "Costo" ? `Costo del lote ${mxn(debe)} · pagado ${mxn(pagado)}` : `Me toca ${mxn(debe)} · me pagué ${mxn(pagado)}`}</div>
         <details className="mt-1 text-xs">
           <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
           <div className="mt-2 space-y-2">
@@ -358,8 +358,8 @@ export default function Socios() {
               const extra = p.categoria === "Costo extra";
               const vend = n(p.vendidas);
               return tipo === "Costo" ? (
-                <Fila key={p.id_producto} titulo={p.nombre} v={n(p.costo_total) - n(p.costo_inventario)}
-                  sub={extra ? "costo extra" : `${vend} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
+                <Fila key={p.id_producto} titulo={p.nombre} v={n(p.costo_total)}
+                  sub={extra ? "costo extra" : `${n(p.cantidad)} pzas × ${mxn(p.costo_unitario)} c/u, completo (vendidas o no)`} />
               ) : (
                 <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={p.mia} tocaTxt="Me toca" rojo={n(p.ganancia_real) < -0.005}
                   ventas={extra ? null : ventasPor[p.id_producto]}
@@ -384,7 +384,7 @@ export default function Socios() {
               onChange={(e) => setMontos((m) => ({ ...m, [clave]: e.target.value }))} />
             <button disabled={ocupado === clave} onClick={() => pagar(u, tipo, montoEscrito > 0 ? montoEscrito : falta, falta)}
               className="rounded-lg border border-amber-500/60 px-2 py-3 text-sm leading-tight text-amber-300 active:bg-amber-500/10">
-              {montoEscrito > 0 ? `Me pagué ${mxn(montoEscrito)}` : `Me pagué: ${mxn(falta)}`}
+              {tipo === "Costo" ? (montoEscrito > 0 ? `Pagué ${mxn(montoEscrito)}` : `Pagué: ${mxn(falta)}`) : (montoEscrito > 0 ? `Me pagué ${mxn(montoEscrito)}` : `Me pagué: ${mxn(falta)}`)}
             </button>
           </div>
         )}
@@ -495,14 +495,14 @@ export default function Socios() {
                 <span><b>{mxn(yo.totYo.gan)}</b> <span className="text-xs text-white/50">· me pagué {mxn(yo.totYo.pagGan)} · falta </span><b className="text-amber-400">{mxn(yo.totYo.gan - yo.totYo.pagGan)}</b></span>
               </div>
               <div className="flex items-baseline justify-between">
-                <span className="text-white/70">Inversión</span>
-                <span><b>{mxn(yo.totYo.inv)}</b> <span className="text-xs text-white/50">· me pagué {mxn(yo.totYo.pagInv)} · falta </span><b className="text-amber-400">{mxn(yo.totYo.inv - yo.totYo.pagInv)}</b></span>
+                <span className="text-white/70">Inversión (costo de mis lotes)</span>
+                <span><b>{mxn(yo.totYo.inv)}</b> <span className="text-xs text-white/50">· pagué {mxn(yo.totYo.pagInv)} · falta </span><b className="text-amber-400">{mxn(yo.totYo.inv - yo.totYo.pagInv)}</b></span>
               </div>
             </div>
             {yo.lotesYo.map((l) => {
               const u = { k: `Y|${l.k}`, socio: "Yo", lote: l.idLote, idProducto: l.idLote ? null : l.idProd, productos: l.productos, pagos: l.pagos };
-              const falInv = r2(l.puseVend - l.pagCosto), falGan = r2(l.mia - l.pagGan);
-              const tieneInv = l.puseVend > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
+              const falInv = r2(l.puse - l.pagCosto), falGan = r2(l.mia - l.pagGan);
+              const tieneInv = l.puse > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
               if (!tieneInv && !tieneGan) return null;
               if (!alCorriente && !((tieneInv && Math.abs(falInv) > TOL) || (tieneGan && Math.abs(falGan) > TOL))) return null;
               return (
@@ -511,7 +511,7 @@ export default function Socios() {
                     <div className="truncate">{l.nombre}</div>
                     <div className="text-xs text-white/50">{l.socios.size ? `Con ${[...l.socios].join(", ")}` : "Solo mío"}{l.productos.length > 1 ? ` · ${l.productos.length} productos` : ""}</div>
                   </div>
-                  {tieneInv && lineaYo({ u, l, tipo: "Costo", debe: l.puseVend, pagado: l.pagCosto, falta: falInv })}
+                  {tieneInv && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
                   {tieneGan && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
                 </div>
               );

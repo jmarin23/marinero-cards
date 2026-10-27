@@ -396,7 +396,7 @@ export default function Socios() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Socios</h1>
-        <Link href="/datos/pagos_socios" className="text-sm text-amber-400">Editar pagos →</Link>
+        <span className="flex gap-4 text-sm"><Link href="/pagarme" className="text-emerald-400">Ya me puedo pagar →</Link><Link href="/datos/pagos_socios" className="text-amber-400">Editar pagos →</Link></span>
       </div>
       <div className="-mt-3 flex items-center justify-between text-xs text-white/40">
         <span>{hora ? `Actualizado ${hora.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}` : "Cargando…"}</span>

@@ -49,7 +49,7 @@ export default function Pagarme() {
 
   const pctDe = (s) => (pcts[s] !== undefined ? pcts[s] : pctBase);
 
-  const { filas, listoTotal, esperando, yaMePague } = useMemo(() => {
+  const { filas, listoTotal, esperando, yaMePague, pagosYo } = useMemo(() => {
     const pagadas = {};
     ventas.filter((v) => v.estado === "Pagado").forEach((v) => {
       const a = (pagadas[v.id_producto] ||= { q: 0, r: 0 });
@@ -73,12 +73,13 @@ export default function Pagarme() {
         l.mi += gLiq * (1 - pct);
       } else l.mi += gLiq;
     }
+    const pagosYo = [];
     for (const g of pagos) {
       const pr = g.id_producto && prodPorId[g.id_producto];
       const k = g.id_lote && !g.id_producto ? g.id_lote : pr ? (pr.id_lote || `P|${pr.id_producto}`) : null;
       const l = k && L.get(k);
       if (!l) continue;
-      if (g.socio === "Yo") { if (g.tipo !== "Costo") l.pagYo += n(g.monto); }
+      if (g.socio === "Yo") { if (g.tipo !== "Costo") { l.pagYo += n(g.monto); pagosYo.push({ g, nombre: l.nombre }); } }
       else if (l.socios.has(g.socio)) l.socios.get(g.socio).pagado += n(g.monto);
     }
     const filas = [...L.values()].map((l) => {
@@ -91,6 +92,7 @@ export default function Pagarme() {
       listoTotal: filas.filter((f) => f.listo && f.disponible > TOL).reduce((t, f) => t + f.disponible, 0),
       esperando: filas.filter((f) => !f.listo && f.disponible > TOL).reduce((t, f) => t + f.disponible, 0),
       yaMePague: filas.reduce((t, f) => t + f.pagYo, 0),
+      pagosYo: pagosYo.sort((a, b) => String(b.g.id_pago).localeCompare(String(a.g.id_pago))),
     };
   }, [prods, ventas, pagos, lotes, pctBase, pcts]);
 
@@ -110,6 +112,13 @@ export default function Pagarme() {
     });
     setOcupado(null);
     if (error) setMsg(error.message); else { setMontos((m) => ({ ...m, [f.k]: "" })); cargar(); }
+  }
+
+  async function quitarPago(g) {
+    if (!confirm(`¿Quitar el pago ${g.id_pago} por ${mxn(g.monto)}?`)) return;
+    setMsg(null);
+    const { error } = await sb.from("pagos_socios").delete().eq("id_pago", g.id_pago);
+    if (error) setMsg(error.message); else cargar();
   }
 
   const con = (f) => (f.socios.size ? `Con ${[...f.socios.values()].map((s) => `${s.socio} ${Math.round(s.pct * 100)}%`).join(", ")} · ya liquidados` : "Solo mío");
@@ -134,6 +143,20 @@ export default function Pagarme() {
           <span>Aún no (faltan socios) {mxn(esperando)}</span>
         </div>
       </div>
+
+      {pagosYo.length > 0 && (
+        <details className="card text-sm">
+          <summary className="cursor-pointer text-amber-300">Mis pagos registrados ({pagosYo.length})</summary>
+          <div className="mt-2 space-y-2 text-xs">
+            {pagosYo.map(({ g, nombre }) => (
+              <div key={g.id_pago} className="flex items-start justify-between gap-3 text-white/60">
+                <span className="min-w-0">{nombre}<span className="block text-white/40">{g.id_pago} · {g.fecha ? g.fecha.split("-").reverse().join("/") : "sin fecha"}</span></span>
+                <span className="shrink-0 text-right">{mxn(g.monto)}<button className="mt-0.5 block text-red-400 underline" onClick={() => quitarPago(g)}>Quitar</button></span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       <section className="space-y-2">
         {listos.map((f) => {

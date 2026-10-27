@@ -16,6 +16,8 @@ export default function Socios() {
   const [prods, setProds] = useState([]);
   const [lotes, setLotes] = useState({});
   const [pagos, setPagos] = useState([]);
+  const [compras, setCompras] = useState({}); // datos de compra por lote (tipo de cambio, aduana, envío, tax)
+  const [origen, setOrigen] = useState({}); // precio original de cada producto
   const [ventasPor, setVentasPor] = useState({}); // ventas de cada producto, para el desglose
   const [pctBase, setPctBase] = useState(0.5); // % por defecto
   const [pcts, setPcts] = useState({}); // % propio por socio
@@ -36,6 +38,13 @@ export default function Socios() {
       sb.from("lotes").select("id_lote,nombre").range(0, 4999),
       sb.from("ventas").select("id_venta,id_producto,fecha,cantidad,monto_neto,estado").not("id_producto", "is", null).neq("estado", "Reembolso").order("fecha", { ascending: true }).range(0, 4999),
     ]);
+    // desglose del costo: si aún no corren compra_editable.sql estas columnas no existen y se ignora
+    const [lc, pc] = await Promise.all([
+      sb.from("lotes").select("id_lote,compra").range(0, 4999),
+      sb.from("productos").select("id_producto,precio_origen").range(0, 4999),
+    ]);
+    setCompras(lc.error ? {} : Object.fromEntries((lc.data || []).map((x) => [x.id_lote, x.compra])));
+    setOrigen(pc.error ? {} : Object.fromEntries((pc.data || []).filter((x) => x.precio_origen != null).map((x) => [x.id_producto, Number(x.precio_origen)])));
     const fallo = [p, g, c, l, vt].find((x) => x.error);
     if (fallo) setMsg(`No pude leer los datos: ${fallo.error.message}`);
     setProds(p.data || []); setPagos(g.data || []);
@@ -158,6 +167,31 @@ export default function Socios() {
     };
   }, [prods, pagos, pcts, pctBase, resumen, lotes]);
 
+  // ---- de dónde salió el costo de cada producto: precio, envío, tax de USA y aduana (misma fórmula de Compra) ----
+  const trazas = useMemo(() => {
+    const out = {};
+    const porLote = {};
+    prods.forEach((p) => { if (p.id_lote) (porLote[p.id_lote] ||= []).push(p); });
+    for (const [idLote, ps] of Object.entries(porLote)) {
+      const cp = compras[idLote];
+      if (!cp || ps.some((p) => origen[p.id_producto] == null)) continue; // sin datos guardados no se inventa nada
+      const f = cp.moneda === "USD" ? n(cp.tc) || 1 : 1;
+      const tax = cp.moneda === "USD" ? n(cp.taxUsa) / 100 : 0;
+      const sumaSub = ps.reduce((t, p) => t + origen[p.id_producto] * n(p.cantidad), 0);
+      for (const p of ps) {
+        const sub = origen[p.id_producto] * n(p.cantidad);
+        const envioParte = sumaSub > 0 ? (n(cp.envio) * sub) / sumaSub : 0;
+        const t = {
+          producto: sub * f, envio: envioParte * f, tax: sub * tax * f, aduana: (sub + envioParte) * f * (n(cp.aduana) / 100),
+          precio: origen[p.id_producto], moneda: cp.moneda === "USD" ? "USD" : "MXN", cant: n(p.cantidad),
+        };
+        t.ajuste = n(p.costo_total) - (t.producto + t.envio + t.tax + t.aduana); // lo que se movió a mano después
+        out[p.id_producto] = t;
+      }
+    }
+    return out;
+  }, [prods, compras, origen]);
+
   const nombres = ["Todos", "Yo", ...resumen.map((s) => s.socio)];
 
   const lineas = (u) => {
@@ -226,13 +260,39 @@ export default function Socios() {
     setNuevo(null); cargar();
   }
 
+  const trazaTxt = (id) => {
+    const t = trazas[id];
+    if (!t) return null;
+    const partes = [[`producto ${mxn(t.producto)}`, t.producto], [`envío ${mxn(t.envio)}`, t.envio], [`tax USA ${mxn(t.tax)}`, t.tax], [`aduana ${mxn(t.aduana)}`, t.aduana], [`ajuste ${mxn(t.ajuste)}`, Math.abs(t.ajuste) > 1 ? t.ajuste : 0]];
+    return `${t.cant} × ${t.moneda === "USD" ? "US$" : "$"}${Math.round(t.precio * 100) / 100} → ` + partes.filter(([, v]) => Math.abs(v) > 0.005).map(([x]) => x).join(" + ");
+  };
+  // Costo completo de estos productos separado en producto / envío / tax / aduana
+  const bloqueTraza = (ps) => {
+    const con = ps.filter((p) => trazas[p.id_producto]);
+    const idLote = (ps.find((p) => p.id_lote) || {}).id_lote;
+    if (!con.length) {
+      return (
+        <p className="text-white/40">Este costo no tiene desglose guardado (precio, envío, tax, aduana).{idLote && <> <Link href={`/compras/nueva?lote=${idLote}`} className="text-amber-300 underline">Editar compra</Link></>}</p>
+      );
+    }
+    const suma = (k) => con.reduce((t, p) => t + trazas[p.id_producto][k], 0);
+    const filas = [["Productos (a tipo de cambio)", suma("producto")], ["Envío", suma("envio")], ["Tax de USA", suma("tax")], ["Aduana a México", suma("aduana")], ["Ajuste manual", Math.abs(suma("ajuste")) > 1 ? suma("ajuste") : 0]].filter(([, v]) => Math.abs(v) > 0.005);
+    return (
+      <div className="space-y-0.5 border-t border-white/10 pt-2">
+        <div className="text-white/50">De dónde salió el costo (completo, antes de prorratear por lo vendido)</div>
+        {filas.map(([l, v]) => <div key={l} className="flex justify-between text-white/60"><span>{l}</span><span>{mxn(v)}</span></div>)}
+        <div className="flex justify-between font-semibold"><span>Costo total</span><span>{mxn(filas.reduce((t, [, v]) => t + v, 0))}</span></div>
+        {con.length < ps.length && <p className="text-white/40">{ps.length - con.length} producto(s) sin desglose guardado.</p>}
+      </div>
+    );
+  };
   const pctG = (g, costo) => (costo > TOL ? ` · ganancia ${g >= 0 ? "+" : "−"}${Math.abs(Math.round((g / costo) * 100))}% sobre el costo` : "");
   const pctTxt = (p) => `${Math.round(p * 10000) / 100}%`;
   const diaMes = (d) => (d ? d.split("-").slice(1).reverse().join("/") : "s/f");
-  const Fila = ({ titulo, sub, v, rojo, ventas, gris, toca, toca_a, tocaTxt, accion }) => (
+  const Fila = ({ titulo, sub, detalle, v, rojo, ventas, gris, toca, toca_a, tocaTxt, accion }) => (
     <div>
       <div className={`flex items-start justify-between gap-3 ${gris ? "opacity-60" : ""}`}>
-        <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}</span>
+        <span className="min-w-0 text-white/70">{titulo}{sub && <span className="block text-white/40">{sub}</span>}{detalle && <span className="block text-white/40">{detalle}</span>}</span>
         <span className="shrink-0 text-right">
           <span className={rojo ? "text-red-400" : ""}>{mxn(v)}</span>
           {toca != null && <span className={`block ${toca < -0.005 ? "text-red-400" : "text-amber-300"}`}>{tocaTxt || `Le toca a ${toca_a}`} {mxn(toca)}</span>}
@@ -262,7 +322,7 @@ export default function Socios() {
             const v = delSocio ? n(p.costo_total) - n(p.costo_inventario) : 0;
             const extra = p.categoria === "Costo extra";
             return (
-              <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} accion={!delSocio ? { t: `Lo pagó ${u.socio}`, f: () => loPagoElSocio([p.id_producto]) } : null} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null}
+              <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} accion={!delSocio ? { t: `Lo pagó ${u.socio}`, f: () => loPagoElSocio([p.id_producto]) } : null} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null} detalle={delSocio ? trazaTxt(p.id_producto) : null}
                 sub={!delSocio ? "lo pagaste tú, no se te regresa" : extra ? "costo extra, se cuenta completo" : `${n(p.vendidas)} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
             );
           })}
@@ -273,6 +333,7 @@ export default function Socios() {
           )}
           <div className="flex justify-between border-t border-white/10 pt-1 font-semibold"><span>Total</span><span>{mxn(debe)}</span></div>
           <p className="text-white/40">Solo cuenta el costo de lo que ya vendiste; lo que sigue en inventario se suma cuando se venda.</p>
+          {bloqueTraza(u.productos.filter((p) => p.quien_puso_costo === "Socio"))}
         </div>
       );
     }
@@ -365,7 +426,7 @@ export default function Socios() {
               const extra = p.categoria === "Costo extra";
               const vend = n(p.vendidas);
               return tipo === "Costo" ? (
-                <Fila key={p.id_producto} titulo={p.nombre} v={n(p.costo_total)}
+                <Fila key={p.id_producto} titulo={p.nombre} v={n(p.costo_total)} detalle={trazaTxt(p.id_producto)}
                   sub={extra ? "costo extra" : `${n(p.cantidad)} pzas × ${mxn(p.costo_unitario)} c/u, completo (vendidas o no)`} />
               ) : (
                 <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={p.mia} tocaTxt="Me toca" rojo={n(p.ganancia_real) < -0.005}
@@ -373,6 +434,7 @@ export default function Socios() {
                   sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(n(p.venta_total) - n(p.ganancia_real))}${pctG(n(p.ganancia_real), n(p.venta_total) - n(p.ganancia_real))}`} />
               );
             })}
+            {tipo === "Costo" && bloqueTraza(l.productos.filter((p) => p.quien_puso_costo !== "Socio"))}
           </div>
         </details>
         {mios.length > 0 && (

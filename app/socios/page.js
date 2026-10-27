@@ -60,6 +60,7 @@ export default function Socios() {
   // ---- unidades de cobro: un lote completo (si le pagaste por lote) o un producto ----
   const { unidades, resumen, avisos } = useMemo(() => {
     const prodSocios = prods.filter((p) => esSocio(p.socio));
+    const pagosSoc = pagos.filter((g) => esSocio(g.socio)); // los pagos a mí mismo se llevan aparte
     // siempre por lote (un renglón por lote y socio); solo si un producto no tiene lote se cobra solo
     const claveDe = (socio, idLote, idProd) => (idLote ? `L|${socio}|${idLote}` : `P|${idProd}`);
 
@@ -78,7 +79,7 @@ export default function Socios() {
     }
     const prodPorId = Object.fromEntries(prods.map((p) => [p.id_producto, p]));
     const huerfanos = [];
-    for (const g of pagos) {
+    for (const g of pagosSoc) {
       let k = null;
       if (g.id_lote && !g.id_producto) k = `L|${g.socio}|${g.id_lote}`;
       else if (g.id_producto) { const p = prodPorId[g.id_producto]; k = p ? claveDe(g.socio, p.id_lote, g.id_producto) : null; }
@@ -98,12 +99,12 @@ export default function Socios() {
       if (p.quien_puso_costo === "Socio") s.cpr += n(p.costo_total) - n(p.costo_inventario);
     }
     for (const r of registrados) alta(r); // socios agregados a mano, aunque aún no tengan productos
-    for (const g of pagos) { const s = alta(g.socio); s.pagado += n(g.monto); if (g.tipo === "Costo") s.pagCosto += n(g.monto); else s.pagGan += n(g.monto); }
+    for (const g of pagosSoc) { const s = alta(g.socio); s.pagado += n(g.monto); if (g.tipo === "Costo") s.pagCosto += n(g.monto); else s.pagGan += n(g.monto); }
     const resumen = [...S.values()].map((s) => ({ ...s, debo: s.cpr + s.parte - s.pagado })).sort((a, b) => b.debo - a.debo);
 
     // avisos de datos que no cuadran
     const avisos = [];
-    const pagoSocioDistinto = pagos.filter((g) => {
+    const pagoSocioDistinto = pagosSoc.filter((g) => {
       const p = g.id_producto && prodPorId[g.id_producto];
       return p && p.socio !== g.socio;
     });
@@ -128,24 +129,34 @@ export default function Socios() {
     const L = new Map();
     for (const p of prods) {
       const k = p.id_lote || `P|${p.id_producto}`;
-      if (!L.has(k)) L.set(k, { k, nombre: p.id_lote ? (lotes[p.id_lote] || p.id_lote) : p.nombre, socios: new Set(), g: 0, mia: 0, vend: 0, puse: 0, puseVend: 0, puseInv: 0, productos: [] });
+      if (!L.has(k)) L.set(k, { k, nombre: p.id_lote ? (lotes[p.id_lote] || p.id_lote) : p.nombre, idLote: p.id_lote || null, idProd: p.id_producto, socios: new Set(), g: 0, mia: 0, vend: 0, puse: 0, puseVend: 0, puseInv: 0, pagCosto: 0, pagGan: 0, pagos: [], productos: [] });
       const l = L.get(k), g = n(p.ganancia_real), mia = esSocio(p.socio) ? g * (1 - pctDe(p.socio)) : g;
       l.g += g; l.mia += mia; l.vend += n(p.vendidas); l.productos.push({ ...p, mia });
       if (p.quien_puso_costo !== "Socio") { l.puse += n(p.costo_total); l.puseInv += n(p.costo_inventario); l.puseVend += n(p.costo_total) - n(p.costo_inventario); }
       if (esSocio(p.socio)) l.socios.add(`${p.socio} ${Math.round(pctDe(p.socio) * 100)}%`);
     }
+    const prodPorId = Object.fromEntries(prods.map((p) => [p.id_producto, p]));
+    for (const g of pagos.filter((x) => x.socio === "Yo")) {
+      const pr = g.id_producto && prodPorId[g.id_producto];
+      const k = g.id_lote && !g.id_producto ? g.id_lote : pr ? (pr.id_lote || `P|${pr.id_producto}`) : null;
+      const l = k && L.get(k);
+      if (!l) continue;
+      if (g.tipo === "Costo") l.pagCosto += n(g.monto); else l.pagGan += n(g.monto);
+      l.pagos.push(g);
+    }
     const todos = [...L.values()];
     const lotesYo = todos.filter((l) => l.vend > 0 || Math.abs(l.g) > 0.005 || l.puse > 0.005).sort((a, b) => b.mia - a.mia);
     const sinVentas = 0;
+    const totYo = { inv: todos.reduce((t, l) => t + l.puseVend, 0), pagInv: todos.reduce((t, l) => t + l.pagCosto, 0), gan: todos.reduce((t, l) => t + l.mia, 0), pagGan: todos.reduce((t, l) => t + l.pagGan, 0) };
     const puse = todos.reduce((t, l) => t + l.puse, 0), puseInv = todos.reduce((t, l) => t + l.puseInv, 0);
     const corresponde = resumen.reduce((t, s) => t + s.cpr + s.parte, 0);
     const pagado = resumen.reduce((t, s) => t + s.pagado, 0);
     const deboA = resumen.filter((s) => s.debo > TOL);
     return {
       gTotal, gConSocio, gMia, partesSocios, miParte: gConSocio - partesSocios, miGanancia: gTotal - partesSocios,
-      lotesYo, sinVentas, puse, puseInv, corresponde, pagado, deboA, porPagar: deboA.reduce((t, s) => t + s.debo, 0),
+      lotesYo, sinVentas, totYo, puse, puseInv, corresponde, pagado, deboA, porPagar: deboA.reduce((t, s) => t + s.debo, 0),
     };
-  }, [prods, pcts, pctBase, resumen, lotes]);
+  }, [prods, pagos, pcts, pctBase, resumen, lotes]);
 
   const nombres = ["Todos", "Yo", ...resumen.map((s) => s.socio)];
 
@@ -326,6 +337,61 @@ export default function Socios() {
     );
   }
 
+  function lineaYo({ u, l, tipo, debe, pagado, falta }) {
+    const clave = u.k + tipo;
+    const ok = Math.abs(falta) <= TOL, lleva = falta > TOL;
+    const mios = l.pagos.filter((g) => (tipo === "Costo" ? g.tipo === "Costo" : g.tipo !== "Costo")).sort((a, b) => String(b.id_pago).localeCompare(String(a.id_pago)));
+    const montoEscrito = Number(montos[clave]) || 0;
+    return (
+      <div key={clave} className="rounded-lg border border-white/10 p-2 text-sm">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-white/70">{tipo === "Costo" ? "Inversión" : "Ganancia"}</span>
+          <span className={ok ? "text-emerald-400" : lleva ? "font-semibold text-amber-400" : "text-sky-300"}>
+            {ok ? "✔ al corriente" : lleva ? `Falta ${mxn(falta)}` : `Pagado de más ${mxn(-falta)}`}
+          </span>
+        </div>
+        <div className="mt-1 text-xs text-white/50">Me toca {mxn(debe)} · me pagué {mxn(pagado)}</div>
+        <details className="mt-1 text-xs">
+          <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
+          <div className="mt-2 space-y-2">
+            {l.productos.filter((p) => (tipo === "Costo" ? p.quien_puso_costo !== "Socio" : true)).map((p) => {
+              const extra = p.categoria === "Costo extra";
+              const vend = n(p.vendidas);
+              return tipo === "Costo" ? (
+                <Fila key={p.id_producto} titulo={p.nombre} v={n(p.costo_total) - n(p.costo_inventario)}
+                  sub={extra ? "costo extra" : `${vend} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
+              ) : (
+                <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={p.mia} tocaTxt="Me toca" rojo={n(p.ganancia_real) < -0.005}
+                  ventas={extra ? null : ventasPor[p.id_producto]}
+                  sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(n(p.venta_total) - n(p.ganancia_real))}`} />
+              );
+            })}
+          </div>
+        </details>
+        {mios.length > 0 && (
+          <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs">
+            {mios.map((g) => (
+              <div key={g.id_pago} className="flex items-center justify-between gap-3 text-white/60">
+                <span>Pago del {fechaCorta(g.fecha)}</span>
+                <span>{mxn(g.monto)} <button className="ml-2 text-red-400 underline" onClick={() => deshacerPago(g)}>Quitar</button></span>
+              </div>
+            ))}
+          </div>
+        )}
+        {lleva && (
+          <div className="mt-2 grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2">
+            <input className="input !py-2" type="number" inputMode="decimal" step="any" placeholder="Otro monto" value={montos[clave] ?? ""}
+              onChange={(e) => setMontos((m) => ({ ...m, [clave]: e.target.value }))} />
+            <button disabled={ocupado === clave} onClick={() => pagar(u, tipo, montoEscrito > 0 ? montoEscrito : falta, falta)}
+              className="rounded-lg border border-amber-500/60 px-2 py-3 text-sm leading-tight text-amber-300 active:bg-amber-500/10">
+              {montoEscrito > 0 ? `Me pagué ${mxn(montoEscrito)}` : `Me pagué: ${mxn(falta)}`}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -378,68 +444,6 @@ export default function Socios() {
       )}
 
       <section className="space-y-2">
-        {prods.length > 0 && (
-          <div className="card border-sky-400/40">
-            <div className="flex items-baseline justify-between">
-              <span className="font-semibold">Yo</span>
-              <span className={yo.porPagar > TOL ? "font-bold text-amber-400" : "text-emerald-400"}>
-                {yo.porPagar > TOL ? `Debo ${mxn(yo.porPagar)}` : "Al corriente con los socios"}
-              </span>
-            </div>
-            <div className="mt-2 space-y-1 text-sm">
-              <div className="flex items-baseline justify-between">
-                <span className="text-white/70">Lo que debo a socios</span>
-                <span><b>{mxn(yo.corresponde)}</b> <span className="text-xs text-white/50">· pagado {mxn(yo.pagado)} · falta </span><b className="text-amber-400">{mxn(Math.max(yo.corresponde - yo.pagado, 0))}</b></span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-white/70">Mi ganancia</span>
-                <b className={yo.miGanancia < -0.005 ? "text-red-400" : "text-emerald-400"}>{mxn(yo.miGanancia)}</b>
-              </div>
-            </div>
-            <div className="mt-3 border-t border-white/10 pt-2">
-              <div className="mb-1 text-xs uppercase text-white/50">Mi ganancia por lote</div>
-              <div className="space-y-1">
-                {yo.lotesYo.map((l) => (
-                  <details key={l.k} className="rounded-lg border border-white/10 px-2 py-1.5 text-sm">
-                    <summary className="flex cursor-pointer items-start justify-between gap-3">
-                      <span className="min-w-0">
-                        <span className="block truncate text-white/80">{l.nombre}</span>
-                        <span className="block text-xs text-white/40">{l.socios.size ? `Con ${[...l.socios].join(", ")}` : "Solo mío"} · ganancia del lote {mxn(l.g)}</span>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="block text-xs text-white/50">Me toca</span>
-                        <b className={l.mia < -0.005 ? "text-red-400" : "text-emerald-400"}>{mxn(l.mia)}</b>
-                      </span>
-                    </summary>
-                    <div className="mt-2 space-y-2 text-xs">
-                      {l.productos.map((p) => {
-                        const extra = p.categoria === "Costo extra";
-                        const vend = n(p.vendidas);
-                        return (
-                          <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={p.mia} tocaTxt="Me toca" rojo={n(p.ganancia_real) < -0.005}
-                            ventas={extra ? null : ventasPor[p.id_producto]}
-                            sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(n(p.venta_total) - n(p.ganancia_real))}`} />
-                        );
-                      })}
-                    </div>
-                  </details>
-                ))}
-                {yo.lotesYo.length === 0 && <p className="text-xs text-white/50">Aún no hay ventas capturadas.</p>}
-              </div>
-              {yo.sinVentas > 0 && <p className="mt-1 text-xs text-white/40">{yo.sinVentas} lotes sin ventas aún no se muestran.</p>}
-              {yo.deboA.length > 0 && (
-                <details className="mt-2 text-xs">
-                  <summary className="cursor-pointer text-amber-300/80">A quién le debo</summary>
-                  <div className="mt-1 space-y-1 text-white/60">
-                    {yo.deboA.map((s) => (
-                      <div key={s.socio} className="flex justify-between gap-3"><span>{s.socio}</span><span className="text-amber-300">{mxn(s.debo)}</span></div>
-                    ))}
-                  </div>
-                </details>
-              )}
-            </div>
-          </div>
-        )}
         {resumen.map((s) => (
           <div key={s.socio} className="card">
             <div className="flex items-baseline justify-between">
@@ -480,54 +484,38 @@ export default function Socios() {
               className={`shrink-0 rounded-full border px-3 py-1 text-sm ${filtro === nm ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{nm}</button>
           ))}
         </div>
-        <label className={`flex items-center gap-2 text-sm text-white/60 ${filtro === "Yo" ? "hidden" : ""}`}>
+        <label className="flex items-center gap-2 text-sm text-white/60">
           <input type="checkbox" checked={alCorriente} onChange={(e) => setAlCorriente(e.target.checked)} /> Mostrar también los que ya están al corriente
         </label>
         {filtro === "Yo" && (
           <>
-            <div className="card flex items-baseline justify-between text-sm">
-              <span className="text-white/70">Yo puse en total</span>
-              <span><b>{mxn(yo.puse)}</b> <span className="text-xs text-white/50">· en inventario {mxn(yo.puseInv)} · mi ganancia </span><b className="text-emerald-400">{mxn(yo.miGanancia)}</b></span>
-            </div>
-            {yo.lotesYo.map((l) => (
-              <div key={l.k} className="card space-y-2">
-                <div>
-                  <div className="truncate">{l.nombre}</div>
-                  <div className="text-xs text-white/50">Yo{l.socios.size ? ` · con ${[...l.socios].join(", ")}` : " · solo mío"}{l.productos.length > 1 ? ` · ${l.productos.length} productos` : ""}</div>
-                </div>
-                {l.puse > 0.005 && (
-                  <div className="rounded-lg border border-white/10 p-2 text-sm">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-white/70">Inversión</span>
-                      <span className="font-semibold">{mxn(l.puse)}</span>
-                    </div>
-                    <div className="mt-1 text-xs text-white/50">Ya vendido {mxn(l.puseVend)} · en inventario {mxn(l.puseInv)}</div>
-                  </div>
-                )}
-                <div className="rounded-lg border border-white/10 p-2 text-sm">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-white/70">Ganancia (me toca)</span>
-                    <b className={l.mia < -0.005 ? "text-red-400" : "text-emerald-400"}>{mxn(l.mia)}</b>
-                  </div>
-                  <div className="mt-1 text-xs text-white/50">Ganancia del lote {mxn(l.g)}{l.socios.size ? ` · el resto es de ${[...l.socios].join(", ")}` : ""}</div>
-                  <details className="mt-1 text-xs">
-                    <summary className="cursor-pointer text-amber-300/80">Ver de dónde sale</summary>
-                    <div className="mt-2 space-y-2">
-                      {l.productos.map((p) => {
-                        const extra = p.categoria === "Costo extra";
-                        const vend = n(p.vendidas);
-                        return (
-                          <Fila key={p.id_producto} titulo={p.nombre} v={n(p.ganancia_real)} toca={p.mia} tocaTxt="Me toca" rojo={n(p.ganancia_real) < -0.005}
-                            ventas={extra ? null : ventasPor[p.id_producto]}
-                            sub={extra ? "costo extra, resta a la ganancia" : vend === 0 ? "sin ventas aún" : `vendiste ${vend} de ${n(p.cantidad)} por ${mxn(p.venta_total)} − costo de lo vendido ${mxn(n(p.venta_total) - n(p.ganancia_real))}`} />
-                        );
-                      })}
-                    </div>
-                  </details>
-                </div>
+            <div className="card space-y-1 text-sm">
+              <div className="flex items-baseline justify-between">
+                <span className="text-white/70">Ganancia que me toca</span>
+                <span><b>{mxn(yo.totYo.gan)}</b> <span className="text-xs text-white/50">· me pagué {mxn(yo.totYo.pagGan)} · falta </span><b className="text-amber-400">{mxn(yo.totYo.gan - yo.totYo.pagGan)}</b></span>
               </div>
-            ))}
-            {yo.lotesYo.length === 0 && <p className="text-sm text-white/50">Aún no hay nada tuyo.</p>}
+              <div className="flex items-baseline justify-between">
+                <span className="text-white/70">Inversión</span>
+                <span><b>{mxn(yo.totYo.inv)}</b> <span className="text-xs text-white/50">· me pagué {mxn(yo.totYo.pagInv)} · falta </span><b className="text-amber-400">{mxn(yo.totYo.inv - yo.totYo.pagInv)}</b></span>
+              </div>
+            </div>
+            {yo.lotesYo.map((l) => {
+              const u = { k: `Y|${l.k}`, socio: "Yo", lote: l.idLote, idProducto: l.idLote ? null : l.idProd, productos: l.productos, pagos: l.pagos };
+              const falInv = r2(l.puseVend - l.pagCosto), falGan = r2(l.mia - l.pagGan);
+              const tieneInv = l.puseVend > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
+              if (!tieneInv && !tieneGan) return null;
+              if (!alCorriente && !((tieneInv && Math.abs(falInv) > TOL) || (tieneGan && Math.abs(falGan) > TOL))) return null;
+              return (
+                <div key={l.k} className="card space-y-2">
+                  <div>
+                    <div className="truncate">{l.nombre}</div>
+                    <div className="text-xs text-white/50">{l.socios.size ? `Con ${[...l.socios].join(", ")}` : "Solo mío"}{l.productos.length > 1 ? ` · ${l.productos.length} productos` : ""}</div>
+                  </div>
+                  {tieneInv && lineaYo({ u, l, tipo: "Costo", debe: l.puseVend, pagado: l.pagCosto, falta: falInv })}
+                  {tieneGan && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
+                </div>
+              );
+            })}
           </>
         )}
         {filtro !== "Yo" && filas.map((u) => {

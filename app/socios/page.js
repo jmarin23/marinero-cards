@@ -181,11 +181,12 @@ export default function Socios() {
       for (const p of ps) {
         const sub = origen[p.id_producto] * n(p.cantidad);
         const envioParte = sumaSub > 0 ? (n(cp.envio) * sub) / sumaSub : 0;
+        const cruceParte = sumaSub > 0 ? (n(cp.cruce) * sub) / sumaSub : 0; // el cruce ya viene en MXN y no paga aduana
         const t = {
-          producto: sub * f, envio: envioParte * f, tax: sub * tax * f, aduana: (sub + envioParte) * f * (n(cp.aduana) / 100),
+          producto: sub * f, envio: envioParte * f, tax: sub * tax * f, aduana: (sub + envioParte) * f * (n(cp.aduana) / 100), cruce: cruceParte,
           precio: origen[p.id_producto], moneda: cp.moneda === "USD" ? "USD" : "MXN", cant: n(p.cantidad),
         };
-        t.ajuste = n(p.costo_total) - (t.producto + t.envio + t.tax + t.aduana); // lo que se movió a mano después
+        t.ajuste = n(p.costo_total) - (t.producto + t.envio + t.tax + t.aduana + t.cruce); // lo que se movió a mano después
         out[p.id_producto] = t;
       }
     }
@@ -263,7 +264,7 @@ export default function Socios() {
   const trazaTxt = (id) => {
     const t = trazas[id];
     if (!t) return null;
-    const partes = [[`producto ${mxn(t.producto)}`, t.producto], [`envío ${mxn(t.envio)}`, t.envio], [`tax USA ${mxn(t.tax)}`, t.tax], [`aduana ${mxn(t.aduana)}`, t.aduana], [`ajuste ${mxn(t.ajuste)}`, Math.abs(t.ajuste) > 1 ? t.ajuste : 0]];
+    const partes = [[`producto ${mxn(t.producto)}`, t.producto], [`envío ${mxn(t.envio)}`, t.envio], [`tax USA ${mxn(t.tax)}`, t.tax], [`aduana ${mxn(t.aduana)}`, t.aduana], [`cruce ${mxn(t.cruce)}`, t.cruce], [`ajuste ${mxn(t.ajuste)}`, Math.abs(t.ajuste) > 1 ? t.ajuste : 0]];
     return `${t.cant} × ${t.moneda === "USD" ? "US$" : "$"}${Math.round(t.precio * 100) / 100} → ` + partes.filter(([, v]) => Math.abs(v) > 0.005).map(([x]) => x).join(" + ");
   };
   // Costo completo de estos productos separado en producto / envío / tax / aduana
@@ -276,7 +277,7 @@ export default function Socios() {
       );
     }
     const suma = (k) => con.reduce((t, p) => t + trazas[p.id_producto][k], 0);
-    const filas = [["Productos (a tipo de cambio)", suma("producto")], ["Envío", suma("envio")], ["Tax de USA", suma("tax")], ["Aduana a México", suma("aduana")], ["Ajuste manual", Math.abs(suma("ajuste")) > 1 ? suma("ajuste") : 0]].filter(([, v]) => Math.abs(v) > 0.005);
+    const filas = [["Productos (a tipo de cambio)", suma("producto")], ["Envío", suma("envio")], ["Tax de USA", suma("tax")], ["Aduana a México", suma("aduana")], ["Cruce USA–México", suma("cruce")], ["Ajuste manual", Math.abs(suma("ajuste")) > 1 ? suma("ajuste") : 0]].filter(([, v]) => Math.abs(v) > 0.005);
     return (
       <div className="space-y-0.5 border-t border-white/10 pt-2">
         <div className="text-white/50">De dónde salió el costo (completo, antes de prorratear por lo vendido)</div>

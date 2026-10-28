@@ -27,6 +27,7 @@ export default function NuevaCompra() {
   const [impuesto, setImpuesto] = useState("0");
   const [envio, setEnvio] = useState("");
   const [taxUsa, setTaxUsa] = useState("");
+  const [cruce, setCruce] = useState(""); // cruce USA–México (siempre MXN)
   const [lineas, setLineas] = useState([linea()]);
   const [msg, setMsg] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -45,7 +46,7 @@ export default function NuevaCompra() {
     setEditId(id); setLoteSel(id); setLoteNombre(lo.nombre || ""); setNotas(lo.proveedor_notas || "");
     setFecha(lo.fecha || (ps || []).find((p) => p.fecha_compra)?.fecha_compra || "");
     setMoneda(mon); setTc(String(tcN)); setImpuesto(String(ad));
-    setEnvio(cp?.envio ? String(cp.envio) : ""); setTaxUsa(cp?.taxUsa ? String(cp.taxUsa) : "");
+    setEnvio(cp?.envio ? String(cp.envio) : ""); setTaxUsa(cp?.taxUsa ? String(cp.taxUsa) : ""); setCruce(cp?.cruce ? String(cp.cruce) : "");
     setSinDatos(!cp);
     setLineas((ps || []).map((p) => {
       const unit = num(p.cantidad) > 0 ? num(p.costo_total) / num(p.cantidad) : 0;
@@ -78,18 +79,19 @@ export default function NuevaCompra() {
   const calculo = lineas.map((l, i) => {
     const envioParte = sumaSub > 0 ? (num(envio) * subtotales[i]) / sumaSub : 0; // envío prorrateado
     const conAduana = (subtotales[i] + envioParte) * factor * (1 + num(impuesto) / 100); // la aduana va sobre producto + envío
-    const total = Math.round((conAduana + subtotales[i] * pctTax * factor) * 100) / 100; // el tax de USA va sobre el producto
+    const cruceParte = sumaSub > 0 ? (num(cruce) * subtotales[i]) / sumaSub : 0; // cruce USA–México prorrateado (en MXN, sin aduana)
+    const total = Math.round((conAduana + subtotales[i] * pctTax * factor + cruceParte) * 100) / 100; // el tax de USA va sobre el producto
     return { total, unit: num(l.cantidad) > 0 ? total / num(l.cantidad) : 0 };
   });
   const totalLote = calculo.reduce((a, c) => a + c.total, 0);
   const desglose = {
-    productos: sumaSub * factor, envio: num(envio) * factor, tax: sumaSub * pctTax * factor,
+    productos: sumaSub * factor, envio: num(envio) * factor, tax: sumaSub * pctTax * factor, cruce: sumaSub > 0 ? num(cruce) : 0,
     aduana: (sumaSub + num(envio)) * factor * (num(impuesto) / 100),
   };
 
   const setL = (i, k, v) => setLineas((ls) => ls.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
 
-  const datosCompra = () => ({ moneda, tc: num(tc), aduana: num(impuesto), envio: num(envio), taxUsa: num(taxUsa) });
+  const datosCompra = () => ({ moneda, tc: num(tc), aduana: num(impuesto), envio: num(envio), taxUsa: num(taxUsa), cruce: num(cruce) });
 
   async function guardarEdicion() {
     setMsg(null);
@@ -230,6 +232,9 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
           <label className="text-sm text-white/60">Envío total ({moneda})
             <input className="input mt-1" type="number" step="any" inputMode="decimal" value={envio} onChange={(e) => setEnvio(e.target.value)} placeholder="se reparte entre productos" />
           </label>
+          <label className="text-sm text-white/60">Cruce USA–México (MXN)
+            <input className="input mt-1" type="number" step="any" inputMode="decimal" value={cruce} onChange={(e) => setCruce(e.target.value)} placeholder="lo que cobró el cruce" />
+          </label>
           {moneda === "USD" && (
             <label className="text-sm text-white/60">Tax de USA (%)
               <input className="input mt-1" type="number" step="any" inputMode="decimal" value={taxUsa} onChange={(e) => setTaxUsa(e.target.value)} placeholder="el que cobra la tienda" />
@@ -252,7 +257,7 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
         )}
         {sumaSub > 0 && (
           <div className="space-y-1 border-t border-white/10 pt-3 text-sm">
-            {[["Productos", desglose.productos], ["Envío", desglose.envio], ["Tax de USA", desglose.tax], ["Aduana a México", desglose.aduana]].filter(([, v]) => v > 0.005).map(([l, v]) => (
+            {[["Productos", desglose.productos], ["Envío", desglose.envio], ["Tax de USA", desglose.tax], ["Aduana a México", desglose.aduana], ["Cruce USA–México", desglose.cruce]].filter(([, v]) => v > 0.005).map(([l, v]) => (
               <div key={l} className="flex justify-between text-white/60"><span>{l}</span><span>{mxn(v)}</span></div>
             ))}
             <div className="flex justify-between font-semibold"><span>Total del lote</span><span className="text-amber-400">{mxn(totalLote)}</span></div>

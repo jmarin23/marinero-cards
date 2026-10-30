@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { comprimirImagen } from "@/lib/foto";
+import { comprimirImagen, imagenDePegado, imagenDelPortapapeles } from "@/lib/foto";
 
 const SQL = "alter table lotes add column if not exists foto text;";
 
@@ -29,12 +29,24 @@ export default function FotoLote({ idLote }) {
     if (error) return setErr(error.message);
     setFoto(valor);
   }
+  async function subir(f) {
+    try { await guardar(await comprimirImagen(f)); } catch (x) { setErr(x.message); }
+  }
   async function elegir(e) {
     const f = e.target.files?.[0];
     e.target.value = "";
-    if (!f) return;
-    try { await guardar(await comprimirImagen(f)); } catch (x) { setErr(x.message); }
+    if (f) subir(f);
   }
+  async function pegarBoton() {
+    setErr("");
+    try { subir(await imagenDelPortapapeles()); } catch (x) { setErr(x.message); }
+  }
+  // Cmd/Ctrl + V en cualquier parte de la pantalla: si lo copiado es una imagen, se guarda como la foto del lote
+  useEffect(() => {
+    const alPegar = (e) => { const f = imagenDePegado(e); if (f) { e.preventDefault(); subir(f); } };
+    document.addEventListener("paste", alPegar);
+    return () => document.removeEventListener("paste", alPegar);
+  }, [idLote]);
 
   if (cargando) return null;
   if (falta) {
@@ -50,6 +62,7 @@ export default function FotoLote({ idLote }) {
       <div className="flex items-center justify-between text-sm">
         <span className="text-white/70">Foto del pedido</span>
         <span className="flex gap-4 text-xs">
+          <button className="text-amber-300" disabled={ocupado} onClick={pegarBoton}>📋 Pegar</button>
           <label className="cursor-pointer text-amber-300">
             {foto ? "Cambiar" : "＋ Agregar"}
             <input type="file" accept="image/*" className="hidden" onChange={elegir} disabled={ocupado} />
@@ -65,7 +78,7 @@ export default function FotoLote({ idLote }) {
           <span className="mt-1 block text-xs text-white/40">Toca para verla completa</span>
         </button>
       ) : (
-        <p className="text-xs text-white/40">Sube la captura de la orden (subtotal, tax, total) para tener a la mano de qué fue la compra.</p>
+        <p className="text-xs text-white/40">Copia la captura de la orden (subtotal, tax, total) y pégala aquí con Cmd/Ctrl + V o con el botón Pegar.</p>
       )}
       {grande && foto && (
         <div className="fixed inset-0 z-50 overflow-auto bg-black/95 p-3" onClick={() => setGrande(false)}>

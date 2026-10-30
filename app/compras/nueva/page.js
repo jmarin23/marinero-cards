@@ -1,6 +1,6 @@
 "use client";
 import FotoLote from "@/components/FotoLote";
-import { comprimirImagen } from "@/lib/foto";
+import { comprimirImagen, imagenDePegado, imagenDelPortapapeles } from "@/lib/foto";
 import { useEffect, useMemo, useState } from "react";
 import Volver from "@/components/Volver";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -125,6 +125,17 @@ export default function NuevaCompra() {
     await cargarParaEditar(editId);
   }
 
+  async function ponerFoto(f) {
+    try { setFotoNueva(await comprimirImagen(f)); } catch (x) { setMsg({ ok: false, t: x.message }); }
+  }
+  // Cmd/Ctrl + V: si lo copiado es una imagen, queda como la foto del pedido (solo al crear; al editar lo maneja FotoLote)
+  useEffect(() => {
+    if (editId) return;
+    const alPegar = (e) => { const f = imagenDePegado(e); if (f) { e.preventDefault(); ponerFoto(f); } };
+    document.addEventListener("paste", alPegar);
+    return () => document.removeEventListener("paste", alPegar);
+  }, [editId]);
+
   async function guardar() {
     if (editId) return guardarEdicion();
     setMsg(null);
@@ -219,7 +230,7 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
         )}
         {!editId && (
           <div className="text-sm text-white/60">
-            <span>Foto del pedido (opcional)</span>
+            <span>Foto del pedido (opcional) · copia la captura y pégala con Cmd/Ctrl + V</span>
             <div className="mt-1 flex items-center gap-3">
               <label className="cursor-pointer rounded-lg border border-white/15 px-3 py-2 text-amber-300">
                 {fotoNueva ? "Cambiar foto" : "＋ Agregar foto"}
@@ -228,6 +239,7 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
                   if (f) { try { setFotoNueva(await comprimirImagen(f)); } catch (x) { setMsg({ ok: false, t: x.message }); } }
                 }} />
               </label>
+              <button className="rounded-lg border border-white/15 px-3 py-2 text-amber-300" onClick={async () => { try { ponerFoto(await imagenDelPortapapeles()); } catch (x) { setMsg({ ok: false, t: x.message }); } }}>📋 Pegar</button>
               {fotoNueva && <button className="text-xs text-red-400" onClick={() => setFotoNueva(null)}>Quitar</button>}
             </div>
             {fotoNueva && <img src={fotoNueva} alt="Pedido" className="mt-2 max-h-40 rounded-lg" />}

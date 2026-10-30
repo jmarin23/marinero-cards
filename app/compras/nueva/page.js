@@ -1,6 +1,6 @@
 "use client";
 import FotoLote from "@/components/FotoLote";
-import { comprimirImagen, imagenDePegado, imagenDelPortapapeles } from "@/lib/foto";
+import { comprimirImagen, imagenDePegado, imagenDelPortapapeles, leerFotos, guardarFotosTxt, MAX_FOTOS } from "@/lib/foto";
 import { useEffect, useMemo, useState } from "react";
 import Volver from "@/components/Volver";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -29,7 +29,7 @@ export default function NuevaCompra() {
   const [impuesto, setImpuesto] = useState("0");
   const [envio, setEnvio] = useState("");
   const [taxUsa, setTaxUsa] = useState("");
-  const [fotoNueva, setFotoNueva] = useState(null); // foto del pedido (solo al crear)
+  const [fotosNuevas, setFotosNuevas] = useState([]); // fotos del pedido (solo al crear)
   const [cruce, setCruce] = useState(""); // cruce USA–México (siempre MXN)
   const [lineas, setLineas] = useState([linea()]);
   const [msg, setMsg] = useState(null);
@@ -125,13 +125,17 @@ export default function NuevaCompra() {
     await cargarParaEditar(editId);
   }
 
-  async function ponerFoto(f) {
-    try { setFotoNueva(await comprimirImagen(f)); } catch (x) { setMsg({ ok: false, t: x.message }); }
+  async function ponerFoto(archivos) {
+    try {
+      const nuevas = [];
+      for (const f of [...archivos]) nuevas.push(await comprimirImagen(f));
+      setFotosNuevas((a) => [...a, ...nuevas].slice(0, MAX_FOTOS));
+    } catch (x) { setMsg({ ok: false, t: x.message }); }
   }
   // Cmd/Ctrl + V: si lo copiado es una imagen, queda como la foto del pedido (solo al crear; al editar lo maneja FotoLote)
   useEffect(() => {
     if (editId) return;
-    const alPegar = (e) => { const f = imagenDePegado(e); if (f) { e.preventDefault(); ponerFoto(f); } };
+    const alPegar = (e) => { const f = imagenDePegado(e); if (f) { e.preventDefault(); ponerFoto([f]); } };
     document.addEventListener("paste", alPegar);
     return () => document.removeEventListener("paste", alPegar);
   }, [editId]);
@@ -175,11 +179,16 @@ export default function NuevaCompra() {
       return setMsg({ ok: false, t: "No se guardó: " + error.message });
     }
     let notaFoto = "";
-    if (fotoNueva) {
-      const { error: ef } = await sb.from("lotes").update({ foto: fotoNueva }).eq("id_lote", idLote);
-      if (ef) notaFoto = " (la foto no se guardó: falta correr supabase/lote_foto.sql)";
+    if (fotosNuevas.length) {
+      let todas = fotosNuevas;
+      if (!creado) { // lote existente: se suman a las que ya tiene
+        const { data: ex } = await sb.from("lotes").select("foto").eq("id_lote", idLote).maybeSingle();
+        todas = [...leerFotos(ex?.foto), ...fotosNuevas].slice(0, MAX_FOTOS);
+      }
+      const { error: ef } = await sb.from("lotes").update({ foto: guardarFotosTxt(todas) }).eq("id_lote", idLote);
+      if (ef) notaFoto = " (las fotos no se guardaron: falta correr supabase/lote_foto.sql)";
     }
-    setFotoNueva(null);
+    setFotosNuevas([]);
     setGuardando(false);
     setMsg({ ok: true, t: `Guardado: ${filas.length} producto(s) en ${idLote} por ${mxn(totalLote)}${notaFoto}` });
     setLineas([linea()]); setEnvio(""); setTaxUsa(""); setLoteNombre(""); setNotas("");
@@ -230,20 +239,25 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
         )}
         {!editId && (
           <div className="text-sm text-white/60">
-            <span>Foto del pedido (opcional) · copia la captura y pégala con Cmd/Ctrl + V</span>
+            <span>Fotos del pedido (opcional) · copia la captura y pégala con Cmd/Ctrl + V</span>
             <div className="mt-1 flex items-center gap-3">
               <label className="cursor-pointer rounded-lg border border-white/15 px-3 py-2 text-amber-300">
-                {fotoNueva ? "Cambiar foto" : "＋ Agregar foto"}
-                <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                  const f = e.target.files?.[0]; e.target.value = "";
-                  if (f) { try { setFotoNueva(await comprimirImagen(f)); } catch (x) { setMsg({ ok: false, t: x.message }); } }
-                }} />
+                ＋ Agregar
+                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const l = [...(e.target.files || [])]; e.target.value = ""; ponerFoto(l); }} />
               </label>
-              <button className="rounded-lg border border-white/15 px-3 py-2 text-amber-300" onClick={async () => { try { ponerFoto(await imagenDelPortapapeles()); } catch (x) { setMsg({ ok: false, t: x.message }); } }}>📋 Pegar</button>
-              {fotoNueva && <button className="text-xs text-red-400" onClick={() => setFotoNueva(null)}>Quitar</button>}
+              <button className="rounded-lg border border-white/15 px-3 py-2 text-amber-300" onClick={async () => { try { ponerFoto([await imagenDelPortapapeles()]); } catch (x) { setMsg({ ok: false, t: x.message }); } }}>📋 Pegar</button>
             </div>
-            {fotoNueva && <img src={fotoNueva} alt="Pedido" className="mt-2 max-h-40 rounded-lg" />}
-            {loteSel !== "__nuevo" && fotoNueva && <p className="mt-1 text-xs text-white/40">Se guarda como la foto de {loteSel} (reemplaza la que tenga).</p>}
+            {fotosNuevas.length > 0 && (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {fotosNuevas.map((f, i) => (
+                  <div key={i} className="relative">
+                    <img src={f} alt={`Pedido ${i + 1}`} className="h-24 w-full rounded-lg object-cover object-top" />
+                    <button className="absolute right-1 top-1 rounded-full bg-black/70 px-2 py-0.5 text-xs text-red-300" onClick={() => setFotosNuevas((a) => a.filter((_, j) => j !== i))}>Quitar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {loteSel !== "__nuevo" && fotosNuevas.length > 0 && <p className="mt-1 text-xs text-white/40">Se suman a las fotos de {loteSel}.</p>}
           </div>
         )}
         <label className="block text-sm text-white/60">Fecha de compra

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { useRefrescar } from "@/lib/useRefrescar";
+import FotoLote from "@/components/FotoLote";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -230,6 +231,7 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado, onCambio 
             </div>
             {x.sinPrecio > 0 && <div className="text-xs text-amber-300/80">{x.sinPrecio} producto{x.sinPrecio === 1 ? "" : "s"} sin precio de reventa (se cuenta a costo)</div>}
           </button>
+          {soloLote && <FotoLote idLote={x.id} />}
           {editando === x.id ? (
             <div className="space-y-2 border-t border-white/10 pt-3">
               <input className="input" autoFocus placeholder="Nombre del lote" value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)}

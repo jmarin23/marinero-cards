@@ -1,4 +1,6 @@
 "use client";
+import FotoLote from "@/components/FotoLote";
+import { comprimirImagen } from "@/lib/foto";
 import { useEffect, useMemo, useState } from "react";
 import Volver from "@/components/Volver";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -27,6 +29,7 @@ export default function NuevaCompra() {
   const [impuesto, setImpuesto] = useState("0");
   const [envio, setEnvio] = useState("");
   const [taxUsa, setTaxUsa] = useState("");
+  const [fotoNueva, setFotoNueva] = useState(null); // foto del pedido (solo al crear)
   const [cruce, setCruce] = useState(""); // cruce USA–México (siempre MXN)
   const [lineas, setLineas] = useState([linea()]);
   const [msg, setMsg] = useState(null);
@@ -160,8 +163,14 @@ export default function NuevaCompra() {
       setGuardando(false);
       return setMsg({ ok: false, t: "No se guardó: " + error.message });
     }
+    let notaFoto = "";
+    if (fotoNueva) {
+      const { error: ef } = await sb.from("lotes").update({ foto: fotoNueva }).eq("id_lote", idLote);
+      if (ef) notaFoto = " (la foto no se guardó: falta correr supabase/lote_foto.sql)";
+    }
+    setFotoNueva(null);
     setGuardando(false);
-    setMsg({ ok: true, t: `Guardado: ${filas.length} producto(s) en ${idLote} por ${mxn(totalLote)}` });
+    setMsg({ ok: true, t: `Guardado: ${filas.length} producto(s) en ${idLote} por ${mxn(totalLote)}${notaFoto}` });
     setLineas([linea()]); setEnvio(""); setTaxUsa(""); setLoteNombre(""); setNotas("");
     if (creado) setLoteSel(idLote);
     const { data: l } = await sb.from("lotes").select("id_lote,nombre").order("id_lote", { ascending: false });
@@ -187,6 +196,7 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
       {editId && sinDatos && !faltaSQL && (
         <div className="card text-sm text-white/60">Esta compra se registró antes de guardar sus datos originales. La dejé en pesos, sin aduana, con los costos como están. Cambia a USD, pon el tipo de cambio, la aduana y el precio de cada producto, y se recalcula todo.</div>
       )}
+      {editId && <FotoLote idLote={editId} />}
       {msg && <div className={`card text-sm ${msg.ok ? "border-emerald-500/40 text-emerald-300" : "border-red-500/40 text-red-300"}`}>{msg.t}</div>}
 
       <section className="card space-y-3">
@@ -206,6 +216,23 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
             <input className="input" placeholder="Nombre del lote (ej. Pedido Topps oct)" value={loteNombre} onChange={(e) => setLoteNombre(e.target.value)} />
             <input className="input" placeholder="Proveedor / notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} />
           </>
+        )}
+        {!editId && (
+          <div className="text-sm text-white/60">
+            <span>Foto del pedido (opcional)</span>
+            <div className="mt-1 flex items-center gap-3">
+              <label className="cursor-pointer rounded-lg border border-white/15 px-3 py-2 text-amber-300">
+                {fotoNueva ? "Cambiar foto" : "＋ Agregar foto"}
+                <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                  const f = e.target.files?.[0]; e.target.value = "";
+                  if (f) { try { setFotoNueva(await comprimirImagen(f)); } catch (x) { setMsg({ ok: false, t: x.message }); } }
+                }} />
+              </label>
+              {fotoNueva && <button className="text-xs text-red-400" onClick={() => setFotoNueva(null)}>Quitar</button>}
+            </div>
+            {fotoNueva && <img src={fotoNueva} alt="Pedido" className="mt-2 max-h-40 rounded-lg" />}
+            {loteSel !== "__nuevo" && fotoNueva && <p className="mt-1 text-xs text-white/40">Se guarda como la foto de {loteSel} (reemplaza la que tenga).</p>}
+          </div>
         )}
         <label className="block text-sm text-white/60">Fecha de compra
           <input className="input mt-1" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />

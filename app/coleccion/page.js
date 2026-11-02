@@ -6,7 +6,20 @@ import { mxn } from "@/lib/format";
 import { useRefrescar } from "@/lib/useRefrescar";
 
 const n = (x) => Number(x || 0);
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = () => new Date().toLocaleDateString("en-CA");
+const SQL_VENTAS = `create table if not exists coleccion_ventas (
+  id bigint generated always as identity primary key,
+  id_carta text,
+  fecha date not null default current_date,
+  cantidad numeric not null default 1,
+  monto numeric not null default 0,
+  cliente text,
+  notas text,
+  creado_en timestamptz default now()
+);
+alter table coleccion_ventas enable row level security;
+drop policy if exists "auth_all" on coleccion_ventas;
+create policy "auth_all" on coleccion_ventas for all to authenticated using (true) with check (true);`;
 const norm = (x) => String(x ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 export default function Coleccion() {
@@ -21,12 +34,18 @@ export default function Coleccion() {
   const [precio, setPrecio] = useState("");
   const [fecha, setFecha] = useState(hoy());
   const [msg, setMsg] = useState(null);
+  const [sueltas, setSueltas] = useState([]);       // ventas sueltas (varias por carta, ej. "Bases 1,000+ cartas")
+  const [faltaVentas, setFaltaVentas] = useState(false);
+  const [panel, setPanel] = useState(null);         // id_carta con el panel de ventas abierto
+  const [vf, setVf] = useState({ cantidad: "1", monto: "", cliente: "", fecha: hoy() });
 
   async function cargar() {
-    const [c, k] = await Promise.all([
+    const [c, k, sv] = await Promise.all([
       sb.from("cartas").select("*").order("id_carta").range(0, 4999),
       sb.from("coleccion").select("*").order("id_compra").range(0, 4999),
+      sb.from("coleccion_ventas").select("*").order("fecha", { ascending: false }).order("id", { ascending: false }).range(0, 4999),
     ]);
+    if (sv.error) { setFaltaVentas(true); setSueltas([]); } else { setFaltaVentas(false); setSueltas(sv.data || []); }
     if (c.error) return setMsg(c.error.message);
     setCartas(c.data || []);
     if (k.error) { setFalta(true); setCompras([]); } else { setFalta(false); setCompras(k.data || []); }
@@ -38,7 +57,7 @@ export default function Coleccion() {
   const vendida = (c) => n(c.valor_venta) > 0;
   const costoCartas = cartas.filter((c) => !c.id_compra).reduce((t, c) => t + n(c.costo), 0); // las que tienen compra ya cuentan en la compra
   const gastado = compras.reduce((t, c) => t + n(c.monto), 0) + costoCartas;
-  const recuperado = compras.reduce((t, c) => t + n(c.vendido), 0) + cartas.reduce((t, c) => t + (vendida(c) ? n(c.valor_venta) : 0), 0);
+  const recuperado = compras.reduce((t, c) => t + n(c.vendido), 0) + cartas.reduce((t, c) => t + (vendida(c) ? n(c.valor_venta) : 0), 0) + sueltas.reduce((t, v) => t + n(v.monto), 0);
   const nVend = cartas.filter(vendida).length;
   const valorDisp = cartas.filter((c) => !vendida(c)).reduce((t, c) => t + n(c.valoracion), 0);
 
@@ -52,6 +71,9 @@ export default function Coleccion() {
     });
   }, [cartas, q, filtro]);
 
+  const sueltasDe = (c) => sueltas.filter((v) => v.id_carta === c.id_carta);
+  const sumaSueltas = (c) => sueltasDe(c).reduce((t, v) => t + n(v.monto), 0);
+  const piezasSueltas = (c) => sueltasDe(c).reduce((t, v) => t + n(v.cantidad), 0);
   function abrir(id, sugerido) { setAbierta(id); setPrecio(sugerido ? String(sugerido) : ""); setFecha(hoy()); setMsg(null); }
 
   async function venderCarta(c) {
@@ -64,6 +86,20 @@ export default function Coleccion() {
   async function deshacerCarta(c) {
     if (!confirm(`¿Quitar la venta de ${c.nombre}?`)) return;
     const { error } = await sb.from("cartas").update({ valor_venta: 0, fecha_venta: null }).eq("id_carta", c.id_carta);
+    if (error) setMsg(error.message); else cargar();
+  }
+  async function agregarSuelta(c) {
+    const monto = Number(vf.monto), cant = Number(vf.cantidad) || 1;
+    if (!(monto > 0)) return setMsg("Escribe cuánto te pagaron");
+    setMsg(null);
+    const { error } = await sb.from("coleccion_ventas").insert({ id_carta: c.id_carta, fecha: vf.fecha || hoy(), cantidad: cant, monto, cliente: vf.cliente.trim() || null });
+    if (error) return setMsg(error.message);
+    setVf({ ...vf, cantidad: "1", monto: "", cliente: "" }); // se queda abierto para seguir apuntando
+    cargar();
+  }
+  async function quitarSuelta(v) {
+    if (!confirm(`¿Quitar la venta de ${mxn(v.monto)} del ${v.fecha ? v.fecha.split("-").reverse().join("/") : "s/f"}?`)) return;
+    const { error } = await sb.from("coleccion_ventas").delete().eq("id", v.id);
     if (error) setMsg(error.message); else cargar();
   }
   async function venderDeCompra(k) {
@@ -143,7 +179,55 @@ export default function Coleccion() {
                     <div className="mt-1 flex gap-4 text-xs">
                       {v ? <button className="text-red-400 underline" onClick={() => deshacerCarta(c)}>Quitar venta</button>
                          : <button className="text-amber-300 underline" onClick={() => abrir(c.id_carta, n(c.valoracion))}>Marcar vendida</button>}
+                      <button className="text-emerald-400 underline" onClick={() => { setPanel(panel === c.id_carta ? null : c.id_carta); setMsg(null); }}>
+                        {sueltasDe(c).length ? `Ventas sueltas (${sueltasDe(c).length})` : "＋ Ventas sueltas"}
+                      </button>
                       <Link href="/datos/cartas" className="text-white/40 underline">Editar</Link>
+                    </div>
+                  )}
+                  {sueltasDe(c).length > 0 && panel !== c.id_carta && (
+                    <div className="mt-1 text-xs text-emerald-400">Vendido suelto {mxn(sumaSueltas(c))} · {piezasSueltas(c)} pza{piezasSueltas(c) === 1 ? "" : "s"}</div>
+                  )}
+                  {panel === c.id_carta && (
+                    <div className="mt-2 space-y-2 border-t border-white/10 pt-2 text-xs">
+                      {faltaVentas ? (
+                        <div className="space-y-2 text-amber-300">
+                          <p>Falta crear la tabla de ventas sueltas. Pega esto en Supabase (SQL Editor), córrelo una vez y vuelve a abrir:</p>
+                          <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-white/80">{SQL_VENTAS}</pre>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-white/50">Apunta cada venta que hagas de esta carta (o lote); se suman solas a lo recuperado.</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <label className="text-white/50">Piezas
+                              <input className="input mt-1 !py-2" type="number" inputMode="decimal" value={vf.cantidad} onChange={(e) => setVf({ ...vf, cantidad: e.target.value })} />
+                            </label>
+                            <label className="col-span-2 text-white/50">Monto cobrado ($)
+                              <input className="input mt-1 !py-2" type="number" inputMode="decimal" autoFocus value={vf.monto} onChange={(e) => setVf({ ...vf, monto: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter") agregarSuelta(c); }} />
+                            </label>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input className="input !py-2" placeholder="Cliente (opcional)" value={vf.cliente} onChange={(e) => setVf({ ...vf, cliente: e.target.value })}
+                              onKeyDown={(e) => { if (e.key === "Enter") agregarSuelta(c); }} />
+                            <input className="input !py-2" type="date" value={vf.fecha} onChange={(e) => setVf({ ...vf, fecha: e.target.value })} />
+                          </div>
+                          <button className="w-full rounded-lg border border-emerald-500/60 py-2 text-emerald-300" onClick={() => agregarSuelta(c)}>Agregar venta</button>
+                          {sueltasDe(c).length > 0 && (
+                            <div className="space-y-1">
+                              {sueltasDe(c).map((v) => (
+                                <div key={v.id} className="flex items-center justify-between gap-3 text-white/60">
+                                  <span className="min-w-0 truncate">{v.fecha ? v.fecha.split("-").reverse().slice(0, 2).join("/") : "s/f"} · {Number(v.cantidad)} pza{Number(v.cantidad) === 1 ? "" : "s"}{v.cliente ? ` · ${v.cliente}` : ""}</span>
+                                  <span className="shrink-0">{mxn(v.monto)} <button className="ml-2 text-red-400 underline" onClick={() => quitarSuelta(v)}>Quitar</button></span>
+                                </div>
+                              ))}
+                              <div className="flex justify-between border-t border-white/10 pt-1 font-semibold text-white/80">
+                                <span>Total · {piezasSueltas(c)} pzas</span><span>{mxn(sumaSueltas(c))}{piezasSueltas(c) > 0 ? ` · ${mxn(sumaSueltas(c) / piezasSueltas(c))} c/u` : ""}</span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

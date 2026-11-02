@@ -31,7 +31,7 @@ export default function NuevaVenta() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Vender</h1>
-        <Link href="/ventas" className="text-sm text-amber-400">Últimas ventas →</Link>
+        <span className="flex gap-4 text-sm"><Link href="/libreta" className="text-emerald-400">Libreta →</Link><Link href="/ventas" className="text-amber-400">Últimas ventas →</Link></span>
       </div>
       <p className="text-sm text-white/50">Toca lo que vendiste. Solo aparece lo que tienes en inventario.</p>
       {msg && <div className="card border-emerald-500/40 text-emerald-300">{msg}</div>}

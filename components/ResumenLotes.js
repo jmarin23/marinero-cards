@@ -4,6 +4,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { useRefrescar } from "@/lib/useRefrescar";
 import FotoLote from "@/components/FotoLote";
+import PagoLote from "@/components/PagoLote";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -231,6 +232,7 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado, onCambio 
             </div>
             {x.sinPrecio > 0 && <div className="text-xs text-amber-300/80">{x.sinPrecio} producto{x.sinPrecio === 1 ? "" : "s"} sin precio de reventa (se cuenta a costo)</div>}
           </button>
+          {soloLote && <PagoLote idLote={x.id} costoLote={x.costoLote} prodIds={datos.prods.filter((p) => p.id_lote === x.id).map((p) => p.id_producto)} />}
           {soloLote && <FotoLote idLote={x.id} />}
           {editando === x.id ? (
             <div className="space-y-2 border-t border-white/10 pt-3">

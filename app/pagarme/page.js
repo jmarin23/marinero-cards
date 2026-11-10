@@ -20,6 +20,7 @@ export default function Pagarme() {
   const [pagos, setPagos] = useState([]);
   const [lotes, setLotes] = useState({});
   const [pctBase, setPctBase] = useState(0.5);
+  const [imp, setImp] = useState(0.1); // % de la ganancia que se aparta para impuestos
   const [pcts, setPcts] = useState({});
   const [msg, setMsg] = useState(null);
   const [ocupado, setOcupado] = useState(null);
@@ -41,6 +42,8 @@ export default function Pagarme() {
     const cfg = c.data || [];
     const base = cfg.find((x) => x.clave === "porcentaje_socio");
     if (base) setPctBase(n(base.valor));
+    const impCfg = cfg.find((x) => x.clave === "porcentaje_impuestos");
+    if (impCfg) setImp(n(impCfg.valor));
     setPcts(Object.fromEntries(cfg.filter((x) => x.clave.startsWith(PREFIJO_PCT)).map((x) => [x.clave.slice(PREFIJO_PCT.length), n(x.valor)])));
     setHora(new Date());
   }
@@ -49,7 +52,7 @@ export default function Pagarme() {
 
   const pctDe = (s) => (pcts[s] !== undefined ? pcts[s] : pctBase);
 
-  const { filas, listoTotal, esperando, yaMePague, pagosYo } = useMemo(() => {
+  const { filas, listoTotal, esperando, yaMePague, impuestos, pagosYo } = useMemo(() => {
     const pagadas = {};
     ventas.filter((v) => v.estado === "Pagado").forEach((v) => {
       const a = (pagadas[v.id_producto] ||= { q: 0, r: 0 });
@@ -59,7 +62,7 @@ export default function Pagarme() {
     const L = new Map();
     for (const p of prods) {
       const k = p.id_lote || `P|${p.id_producto}`;
-      if (!L.has(k)) L.set(k, { k, idLote: p.id_lote || null, idProd: p.id_producto, nombre: p.id_lote ? (lotes[p.id_lote] || p.id_lote) : p.nombre, socios: new Map(), mi: 0, pagYo: 0 });
+      if (!L.has(k)) L.set(k, { k, idLote: p.id_lote || null, idProd: p.id_producto, nombre: p.id_lote ? (lotes[p.id_lote] || p.id_lote) : p.nombre, socios: new Map(), mi: 0, pagYo: 0, imp: 0, g: 0 });
       const l = L.get(k);
       const extra = p.categoria === "Costo extra";
       const a = pagadas[p.id_producto] || { q: 0, r: 0 };
@@ -70,8 +73,9 @@ export default function Pagarme() {
         if (!l.socios.has(p.socio)) l.socios.set(p.socio, { socio: p.socio, pct, debe: 0, pagado: 0 });
         const so = l.socios.get(p.socio);
         so.debe += gLiq * pct + (p.quien_puso_costo === "Socio" ? (extra ? n(p.costo_total) : a.q * cu) : 0);
-        l.mi += gLiq * (1 - pct);
-      } else l.mi += gLiq;
+        l.mi += gLiq * Math.max(1 - pct - imp, 0);
+      } else l.mi += gLiq * (1 - imp);
+      l.imp += gLiq * imp; l.g += gLiq;
     }
     const pagosYo = [];
     for (const g of pagos) {
@@ -92,9 +96,10 @@ export default function Pagarme() {
       listoTotal: filas.filter((f) => f.listo && f.disponible > TOL).reduce((t, f) => t + f.disponible, 0),
       esperando: filas.filter((f) => !f.listo && f.disponible > TOL).reduce((t, f) => t + f.disponible, 0),
       yaMePague: filas.reduce((t, f) => t + f.pagYo, 0),
+      impuestos: filas.reduce((t, f) => t + f.imp, 0),
       pagosYo: pagosYo.sort((a, b) => String(b.g.id_pago).localeCompare(String(a.g.id_pago))),
     };
-  }, [prods, ventas, pagos, lotes, pctBase, pcts]);
+  }, [prods, ventas, pagos, lotes, pctBase, pcts, imp]);
 
   const listos = filas.filter((f) => f.listo && f.disponible > TOL).sort((a, b) => b.disponible - a.disponible);
   const enEspera = filas.filter((f) => !f.listo && f.disponible > TOL).sort((a, b) => b.disponible - a.disponible);
@@ -121,7 +126,12 @@ export default function Pagarme() {
     if (error) setMsg(error.message); else cargar();
   }
 
-  const con = (f) => (f.socios.size ? `Con ${[...f.socios.values()].map((s) => `${s.socio} ${Math.round(s.pct * 100)}%`).join(", ")} · ya liquidados` : "Solo mío");
+  const pc = (x) => `${Math.round(x * 10000) / 100}%`;
+  const con = (f) => {
+    const yoP = f.g > 0.5 ? f.mi / f.g : Math.max(1 - (f.socios.size === 1 ? [...f.socios.values()][0].pct : 0) - imp, 0);
+    const socios = [...f.socios.values()].map((s) => `${s.socio} ${pc(s.pct)}`).join(" · ");
+    return `${socios ? socios + " (liquidados) · " : "Solo mío · "}yo ${pc(yoP)} · impuestos ${pc(imp)}`;
+  };
 
   return (
     <div className="space-y-5">
@@ -142,6 +152,7 @@ export default function Pagarme() {
           <span>Ya me pagué {mxn(yaMePague)}</span>
           <span>Aún no (faltan socios) {mxn(esperando)}</span>
         </div>
+        <div className="mt-1 text-xs text-sky-300">Aparta para impuestos ({Math.round(imp * 10000) / 100}% de la ganancia liquidada): {mxn(impuestos)}</div>
       </div>
 
       {pagosYo.length > 0 && (

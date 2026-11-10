@@ -70,8 +70,9 @@ export default function Pagarme() {
       const gLiq = extra ? -n(p.costo_total) : a.r - a.q * cu;
       if (esSocio(p.socio)) {
         const pct = pctDe(p.socio);
-        if (!l.socios.has(p.socio)) l.socios.set(p.socio, { socio: p.socio, pct, debe: 0, pagado: 0 });
+        if (!l.socios.has(p.socio)) l.socios.set(p.socio, { socio: p.socio, pct, debe: 0, pagado: 0, gan: 0 });
         const so = l.socios.get(p.socio);
+        so.gan += gLiq * pct;
         so.debe += gLiq * pct + (p.quien_puso_costo === "Socio" ? (extra ? n(p.costo_total) : a.q * cu) : 0);
         l.mi += gLiq * Math.max(1 - pct - imp, 0);
       } else l.mi += gLiq * (1 - imp);
@@ -129,8 +130,8 @@ export default function Pagarme() {
   const pc = (x) => `${Math.round(x * 10000) / 100}%`;
   const con = (f) => {
     const yoP = f.g > 0.5 ? f.mi / f.g : Math.max(1 - (f.socios.size === 1 ? [...f.socios.values()][0].pct : 0) - imp, 0);
-    const socios = [...f.socios.values()].map((s) => `${s.socio} ${pc(s.pct)}`).join(" · ");
-    return `${socios ? socios + " (liquidados) · " : "Solo mío · "}yo ${pc(yoP)} · impuestos ${pc(imp)}`;
+    const socios = [...f.socios.values()].map((s) => `${s.socio} ${pc(s.pct)} ${mxn(s.gan)}`).join(" · ");
+    return `${socios ? socios + " · " : "Solo mío · "}yo ${pc(yoP)} ${mxn(f.mi)} · impuestos ${pc(imp)} ${mxn(f.imp)}`;
   };
 
   return (

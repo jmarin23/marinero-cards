@@ -208,7 +208,7 @@ export default function Socios() {
     if (filtro !== "Todos" && u.socio !== filtro) return false;
     const l = lineas(u);
     if (!l.tieneCosto && !l.tieneGan) return false;
-    const pendiente = (l.tieneCosto && Math.abs(l.falCosto) > TOL) || (l.tieneGan && Math.abs(l.falGan) > TOL);
+    const pendiente = (l.tieneCosto && l.falCosto > TOL) || (l.tieneGan && l.falGan > TOL);
     return alCorriente || pendiente;
   });
 
@@ -558,12 +558,12 @@ export default function Socios() {
             <div className="mt-2 space-y-1 text-sm">
               <div className="flex items-baseline justify-between">
                 <span className="text-white/70">Utilidad que le toca</span>
-                <span><b>{mxn(s.parte)}</b> <span className="text-xs text-white/50">· pagado {mxn(s.pagGan)} · falta </span><b className="text-amber-400">{mxn(s.parte - s.pagGan)}</b></span>
+                <span><b>{mxn(s.parte)}</b> <span className="text-xs text-white/50">· pagado {mxn(s.pagGan)} · falta </span><b className="text-amber-400">{mxn(Math.max(s.parte - s.pagGan, 0))}</b></span>
               </div>
               {(Math.abs(s.cpr) > TOL || s.pagCosto > TOL) && (
                 <div className="flex items-baseline justify-between">
                   <span className="text-white/70">Inversión</span>
-                  <span><b>{mxn(s.cpr)}</b> <span className="text-xs text-white/50">· pagado {mxn(s.pagCosto)} · falta </span><b className="text-amber-400">{mxn(s.cpr - s.pagCosto)}</b></span>
+                  <span><b>{mxn(s.cpr)}</b> <span className="text-xs text-white/50">· pagado {mxn(s.pagCosto)} · falta </span><b className="text-amber-400">{mxn(Math.max(s.cpr - s.pagCosto, 0))}</b></span>
                 </div>
               )}
             </div>
@@ -603,15 +603,15 @@ export default function Socios() {
               const falInv = r2(l.puse - l.pagCosto), falGan = r2(l.mia - l.pagGan);
               const tieneInv = l.puse > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
               if (!tieneInv && !tieneGan) return null;
-              if (!alCorriente && !((tieneInv && Math.abs(falInv) > TOL) || (tieneGan && Math.abs(falGan) > TOL))) return null;
+              if (!alCorriente && !((tieneInv && falInv > TOL) || (tieneGan && falGan > TOL))) return null;
               return (
                 <div key={l.k} className="card space-y-2">
                   <div>
                     <div className="truncate">{l.nombre}</div>
                     <div className="text-xs text-white/50">{l.socios.size ? `Con ${[...l.socios].join(", ")}` : "Solo mío"} · reparto: {repartoTxt(l)}{l.productos.length > 1 ? ` · ${l.productos.length} productos` : ""}</div>
                   </div>
-                  {tieneInv && (alCorriente || Math.abs(falInv) > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
-                  {tieneGan && (alCorriente || Math.abs(falGan) > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
+                  {tieneInv && (alCorriente || falInv > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
+                  {tieneGan && (alCorriente || falGan > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
                 </div>
               );
             })}
@@ -625,8 +625,8 @@ export default function Socios() {
                 <div className="truncate">{u.nombre}</div>
                 <div className="text-xs text-white/50">{u.socio}{u.productos.length > 1 ? ` · ${u.productos.length} productos` : ""}</div>
               </div>
-              {l.tieneCosto && (alCorriente || Math.abs(l.falCosto) > TOL) && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
-              {l.tieneGan && (alCorriente || Math.abs(l.falGan) > TOL) && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
+              {l.tieneCosto && (alCorriente || l.falCosto > TOL) && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
+              {l.tieneGan && (alCorriente || l.falGan > TOL) && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
             </div>
           );
         })}

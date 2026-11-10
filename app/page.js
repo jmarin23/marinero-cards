@@ -5,12 +5,13 @@ import Resumen from "@/components/Resumen";
 import Link from "next/link";
 import Charts from "@/components/Charts";
 import Alertas from "@/components/Alertas";
+import InventarioTop from "@/components/InventarioTop";
 
 export const dynamic = "force-dynamic";
 
 export default async function Tablero() {
   const sb = supabaseServer();
-  const [resumen, lotes, canales, meses, cats, estancados, perdidas, porRevisar] = await Promise.all([
+  const [resumen, lotes, canales, meses, cats, estancados, perdidas, porRevisar, enBodega] = await Promise.all([
     sb.from("v_resumen").select("*").single(),
     sb.from("v_lotes").select("*"),
     sb.from("v_ventas_canal").select("*"),
@@ -19,6 +20,7 @@ export default async function Tablero() {
     sb.from("v_alertas_estancados").select("*").order("costo_inventario", { ascending: false }).range(0, 999),
     sb.from("v_alertas_lotes_perdida").select("*"),
     sb.from("ventas").select("id_venta", { count: "exact", head: true }).or('estado.eq.Revisar,canal.is.null,and(id_producto.is.null,or(id_lote.is.null,id_lote.neq.EXT)),cliente_notas.ilike.*Revisar:*'),
+    sb.from("v_productos").select("id_producto,nombre,inventario,costo_inventario,dias_en_inventario").gt("inventario", 0).neq("categoria", "Costo extra").range(0, 4999),
   ]);
   const r = resumen.data || {};
   const num = (x) => Number(x || 0);
@@ -45,6 +47,8 @@ export default async function Tablero() {
       <PanelPagos />
 
       <Charts lotes={dataLotes} canales={dataCanales} meses={dataMeses} categorias={dataCats} />
+
+      <InventarioTop productos={enBodega.data || []} />
 
       <Alertas estancados={estancados.data || []} perdidas={perdidas.data || []} />
     </div>

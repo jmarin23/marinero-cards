@@ -28,6 +28,7 @@ export default function Socios() {
   const [filtro, setFiltro] = useState("Todos");
   const [alCorriente, setAlCorriente] = useState(false);
   const [busca, setBusca] = useState("");
+  const [conVentas, setConVentas] = useState("todos"); // todos | con | sin
   const [msg, setMsg] = useState(null);
   const [ocupado, setOcupado] = useState(null);
   const [hora, setHora] = useState(null);
@@ -202,10 +203,16 @@ export default function Socios() {
       </div>
     );
   };
+  const sinVentasU = (u) => u.productos.every((p) => n(p.vendidas) === 0);
+  const cuentaVentas = { con: unidades.filter((u) => !sinVentasU(u)).length, sin: unidades.filter(sinVentasU).length };
   const filas = unidades.filter((u) => {
     if (filtro !== "Todos" && u.socio !== filtro) return false;
     if (!coincide(u.nombre, u.socio, u.lote || "", txtProds(u.productos))) return false;
+    const sinV = sinVentasU(u);
+    if (conVentas === "con" && sinV) return false;
+    if (conVentas === "sin" && !sinV) return false;
     const l = lineas(u);
+    if (sinV) return true; // un lote sin ventas siempre se puede ver
     if (!l.tieneCosto && !l.tieneGan) return false;
     const pendiente = (l.tieneCosto && l.falCosto > TOL) || (l.tieneGan && l.falGan > TOL);
     return verPagado || pendiente;
@@ -600,6 +607,14 @@ export default function Socios() {
           <input className="input !pr-9" type="search" placeholder="Buscar lote, producto o socio…" value={busca} onChange={(e) => setBusca(e.target.value)} />
           {busca && <button aria-label="Borrar búsqueda" onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">✕</button>}
         </div>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-white/50">Lotes:</span>
+          <div className="flex gap-px rounded-md border border-white/15 p-0.5">
+            {[["todos", "Todos"], ["con", `Con ventas (${cuentaVentas.con})`], ["sin", `Sin ventas (${cuentaVentas.sin})`]].map(([v, l]) => (
+              <button key={v} onClick={() => setConVentas(v)} className={`rounded-[3px] px-3 py-1 ${conVentas === v ? "bg-amber-500/25 text-white" : "text-white/60"}`}>{l}</button>
+            ))}
+          </div>
+        </div>
         <label className="flex items-center gap-2 text-sm text-white/60">
           <input type="checkbox" checked={alCorriente} onChange={(e) => setAlCorriente(e.target.checked)} /> Mostrar también lo que ya está pagado
         </label>
@@ -625,7 +640,10 @@ export default function Socios() {
               const tieneInv = l.puse > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
               if (!tieneInv && !tieneGan) return null;
               if (!coincide(l.nombre, l.idLote || "", [...l.socios], txtProds(l.productos))) return null;
-              if (!verPagado && !((tieneInv && falInv > TOL) || (tieneGan && falGan > TOL))) return null;
+              const sinV = n(l.vend) === 0;
+              if (conVentas === "con" && sinV) return null;
+              if (conVentas === "sin" && !sinV) return null;
+              if (!verPagado && !sinV && !((tieneInv && falInv > TOL) || (tieneGan && falGan > TOL))) return null;
               return (
                 <div key={l.k} className="card space-y-2">
                   <div className="flex items-start justify-between gap-3">
@@ -635,8 +653,8 @@ export default function Socios() {
                     </div>
                     {chipPct(l.productos)}
                   </div>
-                  {tieneInv && (verPagado || falInv > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
-                  {tieneGan && (verPagado || falGan > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
+                  {tieneInv && (verPagado || sinV || falInv > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
+                  {tieneGan && (verPagado || sinV || falGan > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
                 </div>
               );
             })}
@@ -644,17 +662,21 @@ export default function Socios() {
         )}
         {filtro !== "Yo" && filas.map((u) => {
           const l = lineas(u);
+          const sinV = sinVentasU(u);
+          const ver = verPagado || sinV; // un lote sin ventas muestra todo, aunque esté al corriente
+          const verCosto = l.tieneCosto && (ver || l.falCosto > TOL), verGan = l.tieneGan && (ver || l.falGan > TOL);
           return (
             <div key={u.k} className="card space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="truncate">{u.nombre}</div>
-                  <div className="text-xs text-white/50">{u.socio}{u.productos.length > 1 ? ` · ${u.productos.length} productos` : ""}</div>
+                  <div className="text-xs text-white/50">{u.socio}{u.productos.length > 1 ? ` · ${u.productos.length} productos` : ""}{sinV ? " · sin ventas aún" : ""}</div>
                 </div>
                 {chipPct(u.productos)}
               </div>
-              {l.tieneCosto && (verPagado || l.falCosto > TOL) && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
-              {l.tieneGan && (verPagado || l.falGan > TOL) && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
+              {verCosto && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
+              {verGan && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
+              {!verCosto && !verGan && <p className="text-xs text-white/40">{sinV ? "Sin ventas aún. El costo lo pagaste tú, no hay nada que regresar." : "Nada pendiente."}</p>}
             </div>
           );
         })}

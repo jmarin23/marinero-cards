@@ -5,7 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { PREFIJO_PCT } from "@/lib/socios";
 import { useRefrescar } from "@/lib/useRefrescar";
-import { calcularTrazas, deudaCosto } from "@/lib/traza";
+import { calcularTrazas, deudaCosto, reasignarPagosYo } from "@/lib/traza";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -89,7 +89,7 @@ export default function Pagarme() {
       l.imp += gLiq * imp; l.g += gLiq;
     }
     const pagosYo = [];
-    for (const g of pagos) {
+    for (const g of reasignarPagosYo(prods, pagos, trazas)) {
       const pr = g.id_producto && prodPorId[g.id_producto];
       const k = g.id_lote && !g.id_producto ? g.id_lote : pr ? (pr.id_lote || `P|${pr.id_producto}`) : null;
       const l = k && L.get(k);

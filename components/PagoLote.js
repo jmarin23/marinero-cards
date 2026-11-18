@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { useRefrescar } from "@/lib/useRefrescar";
-import { calcularTrazas, deudaCosto } from "@/lib/traza";
+import { calcularTrazas, deudaCosto, reasignarPagosYo } from "@/lib/traza";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -58,8 +58,9 @@ export default function PagoLote({ idLote, prodIds, costoLote }) {
     if (!Object.keys(d).length) d.Yo = n(costoLote);
     return { debe: d, excluido: ex };
   }, [prods, compra, origen, idLote, costoLote]);
+  const pagosEf = useMemo(() => reasignarPagosYo(prods, pagos, calcularTrazas(prods, compra ? { [idLote]: compra } : {}, origen)), [prods, pagos, compra, origen, idLote]);
   const quienes = Object.keys(debe).sort((a, b) => (a === "Yo") - (b === "Yo") || a.localeCompare(b));
-  const pagadoDe = (q) => pagos.filter((g) => g.socio === q).reduce((t, g) => t + n(g.monto), 0);
+  const pagadoDe = (q) => pagosEf.filter((g) => g.socio === q).reduce((t, g) => t + n(g.monto), 0);
   const faltaDe = (q) => Math.max(r2(debe[q] - pagadoDe(q)), 0);
   const quienSel = quien && debe[quien] != null ? quien : quienes.find((q) => faltaDe(q) > 0.5) || quienes[0];
   const costoLote_ = quienes.reduce((t, q) => t + debe[q], 0);

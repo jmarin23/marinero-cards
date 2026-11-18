@@ -5,7 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { PREFIJO_PCT } from "@/lib/socios";
 import { useRefrescar } from "@/lib/useRefrescar";
-import { calcularTrazas, deudaCosto } from "@/lib/traza";
+import { calcularTrazas, deudaCosto, reasignarPagosYo } from "@/lib/traza";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -74,12 +74,13 @@ export default function Socios() {
   const pctDe = (s) => (pcts[s] !== undefined ? pcts[s] : pctBase);
 
   const trazas = useMemo(() => calcularTrazas(prods, compras, origen), [prods, compras, origen]);
+  const pagosEf = useMemo(() => reasignarPagosYo(prods, pagos, trazas), [prods, pagos, trazas]); // pagos de Yo que en realidad son al socio
   const debeDe = (p) => deudaCosto(p, trazas); // lo que se le regresa al socio: producto + tax
 
   // ---- unidades de cobro: un lote completo (si le pagaste por lote) o un producto ----
   const { unidades, resumen, avisos } = useMemo(() => {
     const prodSocios = prods.filter((p) => esSocio(p.socio));
-    const pagosSoc = pagos.filter((g) => esSocio(g.socio)); // los pagos a mí mismo se llevan aparte
+    const pagosSoc = pagosEf.filter((g) => esSocio(g.socio)); // los pagos a mí mismo se llevan aparte
     // siempre por lote (un renglón por lote y socio); solo si un producto no tiene lote se cobra solo
     const claveDe = (socio, idLote, idProd) => (idLote ? `L|${socio}|${idLote}` : `P|${idProd}`);
 
@@ -134,7 +135,7 @@ export default function Socios() {
       if (sinVentas && u.pagGan > TOL) avisos.push({ t: `${u.nombre}: ya registraste ${mxn(u.pagGan)} de pago de ganancia pero aún no hay ventas capturadas. Se acomoda solo al meter las ventas.`, a: null });
     }
     return { unidades: [...U.values()], resumen, avisos };
-  }, [prods, pagos, pctBase, pcts, registrados, lotes, trazas]);
+  }, [prods, pagosEf, pctBase, pcts, registrados, lotes, trazas]);
 
   // ---- Yo: lo que les debo a los socios y lo que me queda de ganancia ----
   const yo = useMemo(() => {
@@ -155,7 +156,7 @@ export default function Socios() {
       if (esSocio(p.socio)) l.socios.add(`${p.socio} ${Math.round(pctDe(p.socio) * 100)}%`);
     }
     const prodPorId = Object.fromEntries(prods.map((p) => [p.id_producto, p]));
-    for (const g of pagos.filter((x) => x.socio === "Yo")) {
+    for (const g of pagosEf.filter((x) => x.socio === "Yo")) {
       const pr = g.id_producto && prodPorId[g.id_producto];
       const k = g.id_lote && !g.id_producto ? g.id_lote : pr ? (pr.id_lote || `P|${pr.id_producto}`) : null;
       const l = k && L.get(k);
@@ -175,7 +176,7 @@ export default function Socios() {
       gTotal, gConSocio, gMia, partesSocios, miParte: gConSocio - partesSocios, miGanancia: gTotal * (1 - imp) - partesSocios,
       lotesYo, sinVentas, totYo, puse, puseInv, corresponde, pagado, deboA, porPagar: deboA.reduce((t, s) => t + s.debo, 0),
     };
-  }, [prods, pagos, pcts, pctBase, imp, resumen, lotes]);
+  }, [prods, pagosEf, pcts, pctBase, imp, resumen, lotes]);
 
   const nombres = ["Todos", "Yo", ...resumen.map((s) => s.socio)];
 
@@ -559,7 +560,7 @@ export default function Socios() {
   const numLote = (id) => { const m = String(id || "").match(/\d+/); return m ? Number(m[0]) : -1; };
   const lista = (() => {
     const out = filas.map((u) => ({ o: numLote(u.lote), t: 0, el: tarjetaSocio(u) }));
-    if (filtro === "Todos") yo.lotesYo.forEach((l) => { const el = tarjetaYo(l); if (el) out.push({ o: numLote(l.idLote), t: 1, el }); });
+    if (filtro === "Todos") yo.lotesYo.forEach((l) => { if (l.socios.size > 0 && l.puse <= TOL && l.pagCosto <= TOL) return; /* mi ganancia de lotes con socio está en "Mis lotes (Yo)" */ const el = tarjetaYo(l); if (el) out.push({ o: numLote(l.idLote), t: 1, el }); });
     return out.sort((a, b) => b.o - a.o || a.t - b.t);
   })();
 

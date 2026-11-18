@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { PREFIJO_PCT } from "@/lib/socios";
 import { useRefrescar } from "@/lib/useRefrescar";
+import { calcularTrazas, deudaCosto } from "@/lib/traza";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -71,6 +72,9 @@ export default function Socios() {
   const miPct = (pctSocio) => Math.max(1 - (pctSocio || 0) - imp, 0); // lo que me queda: 100% − socio − impuestos
   const pctDe = (s) => (pcts[s] !== undefined ? pcts[s] : pctBase);
 
+  const trazas = useMemo(() => calcularTrazas(prods, compras, origen), [prods, compras, origen]);
+  const debeDe = (p) => deudaCosto(p, trazas); // lo que se le regresa al socio: producto + tax
+
   // ---- unidades de cobro: un lote completo (si le pagaste por lote) o un producto ----
   const { unidades, resumen, avisos } = useMemo(() => {
     const prodSocios = prods.filter((p) => esSocio(p.socio));
@@ -88,7 +92,7 @@ export default function Socios() {
       });
       const u = U.get(k);
       u.productos.push(p);
-      u.debeCosto += p.quien_puso_costo === "Socio" ? n(p.costo_total) : 0; // el costo se paga completo, haya venta o no
+      u.debeCosto += p.quien_puso_costo === "Socio" ? debeDe(p) : 0; // producto + tax, completo, haya venta o no
       u.parte += n(p.ganancia_real) * pctDe(p.socio);
     }
     const prodPorId = Object.fromEntries(prods.map((p) => [p.id_producto, p]));
@@ -110,7 +114,7 @@ export default function Socios() {
       const s = alta(p.socio);
       s.ganancia += n(p.ganancia_real);
       s.parte += n(p.ganancia_real) * pctDe(p.socio);
-      if (p.quien_puso_costo === "Socio") s.cpr += n(p.costo_total);
+      if (p.quien_puso_costo === "Socio") s.cpr += debeDe(p);
     }
     for (const r of registrados) alta(r); // socios agregados a mano, aunque aún no tengan productos
     for (const g of pagosSoc) { const s = alta(g.socio); s.pagado += n(g.monto); if (g.tipo === "Costo") s.pagCosto += n(g.monto); else s.pagGan += n(g.monto); }
@@ -129,7 +133,7 @@ export default function Socios() {
       if (sinVentas && u.pagGan > TOL) avisos.push({ t: `${u.nombre}: ya registraste ${mxn(u.pagGan)} de pago de ganancia pero aún no hay ventas capturadas. Se acomoda solo al meter las ventas.`, a: null });
     }
     return { unidades: [...U.values()], resumen, avisos };
-  }, [prods, pagos, pctBase, pcts, registrados, lotes]);
+  }, [prods, pagos, pctBase, pcts, registrados, lotes, trazas]);
 
   // ---- Yo: lo que les debo a los socios y lo que me queda de ganancia ----
   const yo = useMemo(() => {
@@ -171,32 +175,6 @@ export default function Socios() {
       lotesYo, sinVentas, totYo, puse, puseInv, corresponde, pagado, deboA, porPagar: deboA.reduce((t, s) => t + s.debo, 0),
     };
   }, [prods, pagos, pcts, pctBase, imp, resumen, lotes]);
-
-  // ---- de dónde salió el costo de cada producto: precio, envío, tax de USA y aduana (misma fórmula de Compra) ----
-  const trazas = useMemo(() => {
-    const out = {};
-    const porLote = {};
-    prods.forEach((p) => { if (p.id_lote) (porLote[p.id_lote] ||= []).push(p); });
-    for (const [idLote, ps] of Object.entries(porLote)) {
-      const cp = compras[idLote];
-      if (!cp || ps.some((p) => origen[p.id_producto] == null)) continue; // sin datos guardados no se inventa nada
-      const f = cp.moneda === "USD" ? n(cp.tc) || 1 : 1;
-      const tax = cp.moneda === "USD" ? n(cp.taxUsa) / 100 : 0;
-      const sumaSub = ps.reduce((t, p) => t + origen[p.id_producto] * n(p.cantidad), 0);
-      for (const p of ps) {
-        const sub = origen[p.id_producto] * n(p.cantidad);
-        const envioParte = sumaSub > 0 ? (n(cp.envio) * sub) / sumaSub : 0;
-        const cruceParte = sumaSub > 0 ? (n(cp.cruce) * sub) / sumaSub : 0; // el cruce ya viene en MXN y no paga aduana
-        const t = {
-          producto: sub * f, envio: envioParte * f, tax: sub * tax * f, aduana: (sub + envioParte) * f * (n(cp.aduana) / 100), cruce: cruceParte,
-          precio: origen[p.id_producto], moneda: cp.moneda === "USD" ? "USD" : "MXN", cant: n(p.cantidad),
-        };
-        t.ajuste = n(p.costo_total) - (t.producto + t.envio + t.tax + t.aduana + t.cruce); // lo que se movió a mano después
-        out[p.id_producto] = t;
-      }
-    }
-    return out;
-  }, [prods, compras, origen]);
 
   const nombres = ["Todos", "Yo", ...resumen.map((s) => s.socio)];
 
@@ -292,14 +270,18 @@ export default function Socios() {
     const yoP = l.g > 0.5 ? l.mia / l.g : miPct(l.pcts.length && new Set(l.pcts).size === 1 ? l.pcts[0] : 0);
     return `${socios ? socios + " · " : ""}yo ${pctTxt(yoP)} ${mxn(l.mia)} · impuestos ${pctTxt(imp)} ${mxn(l.imp)}`;
   };
-  const trazaTxt = (id) => {
+  const trazaTxt = (id, socio = false) => {
     const t = trazas[id];
     if (!t) return null;
-    const partes = [[`producto ${mxn(t.producto)}`, t.producto], [`envío ${mxn(t.envio)}`, t.envio], [`tax USA ${mxn(t.tax)}`, t.tax], [`aduana ${mxn(t.aduana)}`, t.aduana], [`cruce ${mxn(t.cruce)}`, t.cruce], [`ajuste ${mxn(t.ajuste)}`, Math.abs(t.ajuste) > 1 ? t.ajuste : 0]];
-    return `${t.cant} × ${t.moneda === "USD" ? "US$" : "$"}${Math.round(t.precio * 100) / 100} → ` + partes.filter(([, v]) => Math.abs(v) > 0.005).map(([x]) => x).join(" + ");
+    const partes = [[`producto ${mxn(t.producto)}`, t.producto], [`envío ${mxn(t.envio)}`, t.envio], [`tax USA ${mxn(t.tax)}`, t.tax], [`ajuste ${mxn(t.ajuste)}`, Math.abs(t.ajuste) > 1 ? t.ajuste : 0]];
+    const aparte = [[`aduana ${mxn(t.aduana)}`, t.aduana], [`cruce ${mxn(t.cruce)}`, t.cruce]];
+    const txt = (a) => a.filter(([, v]) => Math.abs(v) > 0.005).map(([x]) => x).join(" + ");
+    const cab = `${t.cant} × ${t.moneda === "USD" ? "US$" : "$"}${Math.round(t.precio * 100) / 100} → `;
+    if (socio) return cab + txt(partes) + (txt(aparte) ? ` · lo pagaste tú: ${txt(aparte)}` : "");
+    return cab + txt([...partes, ...aparte]);
   };
   // Costo completo de estos productos separado en producto / envío / tax / aduana
-  const bloqueTraza = (ps) => {
+  const bloqueTraza = (ps, socio = false) => {
     const con = ps.filter((p) => trazas[p.id_producto]);
     const idLote = (ps.find((p) => p.id_lote) || {}).id_lote;
     if (!con.length) {
@@ -309,6 +291,26 @@ export default function Socios() {
     }
     const suma = (k) => con.reduce((t, p) => t + trazas[p.id_producto][k], 0);
     const filas = [["Productos (a tipo de cambio)", suma("producto")], ["Envío", suma("envio")], ["Tax de USA", suma("tax")], ["Aduana a México", suma("aduana")], ["Cruce USA–México", suma("cruce")], ["Ajuste manual", Math.abs(suma("ajuste")) > 1 ? suma("ajuste") : 0]].filter(([, v]) => Math.abs(v) > 0.005);
+    if (socio) {
+      const aparte = (l) => l === "Aduana a México" || l === "Cruce USA–México";
+      const regresa = filas.filter(([l]) => !aparte(l)), tuyo = filas.filter(([l]) => aparte(l));
+      const tot = (a) => a.reduce((t, [, v]) => t + v, 0);
+      return (
+        <div className="space-y-0.5 border-t border-white/10 pt-2">
+          <div className="text-white/50">Lo que se regresa (lo pagado en la compra)</div>
+          {regresa.map(([l, v]) => <div key={l} className="flex justify-between text-white/60"><span>{l}</span><span>{mxn(v)}</span></div>)}
+          <div className="flex justify-between font-semibold"><span>Por pagar al socio</span><span>{mxn(tot(regresa))}</span></div>
+          {tuyo.length > 0 && (
+            <div className="mt-2 space-y-0.5 text-white/40">
+              <div>Ya los pagaste tú (no cuentan como por pagar)</div>
+              {tuyo.map(([l, v]) => <div key={l} className="flex justify-between"><span>{l}</span><span>{mxn(v)}</span></div>)}
+            </div>
+          )}
+          <div className="flex justify-between border-t border-white/10 pt-1 text-white/50"><span>Costo total del lote</span><span>{mxn(tot(filas))}</span></div>
+          {con.length < ps.length && <p className="text-white/40">{ps.length - con.length} producto(s) sin desglose guardado; de ellos se cuenta el costo completo.</p>}
+        </div>
+      );
+    }
     return (
       <div className="space-y-0.5 border-t border-white/10 pt-2">
         <div className="text-white/50">De dónde salió el costo (completo, antes de prorratear por lo vendido)</div>
@@ -351,11 +353,11 @@ export default function Socios() {
         <div className="mt-2 space-y-2 text-xs">
           {u.productos.map((p) => {
             const delSocio = p.quien_puso_costo === "Socio";
-            const v = delSocio ? n(p.costo_total) : 0;
+            const v = delSocio ? debeDe(p) : 0;
             const extra = p.categoria === "Costo extra";
             return (
-              <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} accion={!delSocio ? { t: `Lo pagó ${u.socio}`, f: () => loPagoElSocio([p.id_producto]) } : null} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null} detalle={delSocio ? trazaTxt(p.id_producto) : null}
-                sub={!delSocio ? "lo pagaste tú, no se te regresa" : extra ? "costo extra, se cuenta completo" : `${n(p.cantidad)} pzas × ${mxn(p.costo_unitario)} c/u, completo (vendidas o no)`} />
+              <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} accion={!delSocio ? { t: `Lo pagó ${u.socio}`, f: () => loPagoElSocio([p.id_producto]) } : null} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null} detalle={delSocio ? trazaTxt(p.id_producto, true) : null}
+                sub={!delSocio ? "lo pagaste tú, no se te regresa" : extra ? "costo extra, se cuenta completo" : `${n(p.cantidad)} pzas, completo (vendidas o no)`} />
             );
           })}
           {u.productos.filter((p) => p.quien_puso_costo !== "Socio").length > 1 && (
@@ -364,8 +366,8 @@ export default function Socios() {
             </button>
           )}
           <div className="flex justify-between border-t border-white/10 pt-1 font-semibold"><span>Total</span><span>{mxn(debe)}</span></div>
-          <p className="text-white/40">El costo se paga completo, se haya vendido o no.</p>
-          {bloqueTraza(u.productos.filter((p) => p.quien_puso_costo === "Socio"))}
+          <p className="text-white/40">Se regresa completo (producto + tax), se haya vendido o no. El cruce y la aduana los pagas tú.</p>
+          {bloqueTraza(u.productos.filter((p) => p.quien_puso_costo === "Socio"), true)}
         </div>
       );
     }

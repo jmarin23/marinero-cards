@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { mxn } from "@/lib/format";
 import { PREFIJO_PCT } from "@/lib/socios";
 import { useRefrescar } from "@/lib/useRefrescar";
+import { calcularTrazas, deudaCosto } from "@/lib/traza";
 
 const n = (x) => Number(x || 0);
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -19,6 +20,8 @@ export default function Pagarme() {
   const [ventas, setVentas] = useState([]);
   const [pagos, setPagos] = useState([]);
   const [lotes, setLotes] = useState({});
+  const [compras, setCompras] = useState({});
+  const [origen, setOrigen] = useState({});
   const [pctBase, setPctBase] = useState(0.5);
   const [imp, setImp] = useState(0.1); // % de la ganancia que se aparta para impuestos
   const [pcts, setPcts] = useState({});
@@ -35,6 +38,12 @@ export default function Pagarme() {
       sb.from("config").select("clave,valor"),
       sb.from("lotes").select("id_lote,nombre").range(0, 4999),
     ]);
+    const [lc, pc] = await Promise.all([
+      sb.from("lotes").select("id_lote,compra").range(0, 4999),
+      sb.from("productos").select("id_producto,precio_origen").range(0, 4999),
+    ]);
+    setCompras(lc.error ? {} : Object.fromEntries((lc.data || []).map((x) => [x.id_lote, x.compra])));
+    setOrigen(pc.error ? {} : Object.fromEntries((pc.data || []).filter((x) => x.precio_origen != null).map((x) => [x.id_producto, Number(x.precio_origen)])));
     const fallo = [p, v, g, c, l].find((x) => x.error);
     if (fallo) setMsg(`No pude leer los datos: ${fallo.error.message}`);
     setProds(p.data || []); setVentas(v.data || []); setPagos(g.data || []);
@@ -51,6 +60,7 @@ export default function Pagarme() {
   useRefrescar(cargar);
 
   const pctDe = (s) => (pcts[s] !== undefined ? pcts[s] : pctBase);
+  const trazas = useMemo(() => calcularTrazas(prods, compras, origen), [prods, compras, origen]);
 
   const { filas, listoTotal, esperando, yaMePague, impuestos, pagosYo } = useMemo(() => {
     const pagadas = {};
@@ -73,7 +83,7 @@ export default function Pagarme() {
         if (!l.socios.has(p.socio)) l.socios.set(p.socio, { socio: p.socio, pct, debe: 0, pagado: 0, gan: 0 });
         const so = l.socios.get(p.socio);
         so.gan += gLiq * pct;
-        so.debe += gLiq * pct + (p.quien_puso_costo === "Socio" ? n(p.costo_total) : 0);
+        so.debe += gLiq * pct + (p.quien_puso_costo === "Socio" ? deudaCosto(p, trazas) : 0);
         l.mi += gLiq * Math.max(1 - pct - imp, 0);
       } else l.mi += gLiq * (1 - imp);
       l.imp += gLiq * imp; l.g += gLiq;
@@ -100,7 +110,7 @@ export default function Pagarme() {
       impuestos: filas.reduce((t, f) => t + f.imp, 0),
       pagosYo: pagosYo.sort((a, b) => String(b.g.id_pago).localeCompare(String(a.g.id_pago))),
     };
-  }, [prods, ventas, pagos, lotes, pctBase, pcts, imp]);
+  }, [prods, ventas, pagos, lotes, pctBase, pcts, imp, trazas]);
 
   const listos = filas.filter((f) => f.listo && f.disponible > TOL).sort((a, b) => b.disponible - a.disponible);
   const enEspera = filas.filter((f) => !f.listo && f.disponible > TOL).sort((a, b) => b.disponible - a.disponible);
@@ -211,7 +221,7 @@ export default function Pagarme() {
       )}
 
       <p className="text-xs text-white/40">
-        Solo cuentan las ventas en estado Pagado, con el costo de lo vendido ya descontado. Un lote con socios aparece hasta que ya les pagaste su parte de lo liquidado y el costo completo que pusieron ellos.
+        Solo cuentan las ventas en estado Pagado, con el costo de lo vendido ya descontado. Un lote con socios aparece hasta que ya les pagaste su parte de lo liquidado y lo que pusieron ellos en la compra (producto + tax; el cruce y la aduana los pagas tú).
       </p>
     </div>
   );

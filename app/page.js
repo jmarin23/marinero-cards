@@ -1,4 +1,3 @@
-import PanelPagos from "@/components/PanelPagos";
 import { supabaseServer } from "@/lib/supabase/server";
 import { mxn } from "@/lib/format";
 import Resumen from "@/components/Resumen";
@@ -6,7 +5,6 @@ import Link from "next/link";
 import Charts from "@/components/Charts";
 import Alertas from "@/components/Alertas";
 import InventarioTop from "@/components/InventarioTop";
-import CuadreTikTok from "@/components/CuadreTikTok";
 
 export const dynamic = "force-dynamic";
 
@@ -48,14 +46,10 @@ export default async function Tablero() {
         </Link>
       )}
 
-      <PanelPagos />
-
-      <CuadreTikTok />
-
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Charts lotes={dataLotes} canales={dataCanales} meses={dataMeses} categorias={dataCats} />
         <InventarioTop productos={enBodega.data || []} />
-        <Alertas estancados={estancados.data || []} perdidas={perdidas.data || []} />
+        <div className="lg:col-span-2"><Alertas estancados={estancados.data || []} perdidas={perdidas.data || []} /></div>
       </div>
     </div>
   );

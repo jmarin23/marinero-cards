@@ -40,7 +40,7 @@ export default function NuevaVenta() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {["", ...cats].map((c) => (
           <button key={c || "todas"} onClick={() => setCat(c)}
-            className={`shrink-0 rounded-full border px-3 py-1 text-sm ${cat === c ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{c || "Todas"}</button>
+            className={`shrink-0 rounded-md border px-3 py-1 text-sm ${cat === c ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{c || "Todas"}</button>
         ))}
       </div>
 

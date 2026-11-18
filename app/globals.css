@@ -3,17 +3,22 @@
 @tailwind utilities;
 
 :root {
-  --background: #f3f2f1;   /* gris Fluent */
-  --foreground: #252423;
-  --ink: 37 36 35;         /* tinta: texto y bordes tenues */
-  --surface: 255 255 255;  /* tarjetas */
-  color-scheme: light;
+  --background: #0e0f11;
+  --foreground: #e9e8e6;
+  --ink: 244 243 241;      /* tinta: texto y bordes tenues */
+  --surface: 27 29 32;     /* paneles */
+  color-scheme: dark;
 }
-body { background: var(--background); color: var(--foreground); }
-.card { @apply rounded-xl border border-white/10 bg-surface p-4 shadow-sm; }
-.btn { @apply rounded-lg bg-amber-500 px-4 py-3 font-semibold active:scale-95 disabled:opacity-40; color: #fff; }
-.input { @apply w-full rounded-lg border border-white/30 bg-surface px-3 py-3 text-base outline-none focus:border-amber-500; }
-.input:focus { box-shadow: 0 0 0 1px #0f6cbd; }
+body { background: var(--background); color: var(--foreground); font-variant-numeric: tabular-nums; }
+.card { @apply rounded-md border border-white/10 bg-surface p-4; }
+.btn { @apply rounded-md bg-amber-500 px-4 py-3 font-semibold active:scale-95 disabled:opacity-40; color: #fff; }
+.btn:hover { background: #3b97e6; }
+.input { @apply w-full rounded-md border border-white/15 bg-black/30 px-3 py-3 text-base outline-none focus:border-amber-500; }
+.input:focus { box-shadow: 0 0 0 1px #2b88d8; }
+main h1.text-2xl { font-size: 1.25rem; line-height: 1.75rem; letter-spacing: -0.01em; }
+
+/* barras de desplazamiento discretas */
+* { scrollbar-width: thin; scrollbar-color: rgba(244,243,241,0.18) transparent; }
 
 /* campos de número: sin flechitas */
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }

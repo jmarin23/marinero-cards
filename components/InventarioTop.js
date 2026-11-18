@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { mxn, compacto } from "@/lib/format";
+import Panel from "@/components/Panel";
 import { T } from "@/components/Resumen";
 
 const num = (x) => Number(x || 0);
@@ -19,21 +20,16 @@ export default function InventarioTop({ productos = [] }) {
   const totalPzas = filas.reduce((t, f) => t + f.piezas, 0);
 
   return (
-    <section className="rounded-xl border border-white/10 p-4 shadow-sm" style={{ background: T.superficie }}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold" style={{ color: T.tinta }}>Lo que más tenemos en inventario</h3>
-          <p className="mt-0.5 text-xs" style={{ color: T.apagado }}>{totalPzas.toLocaleString("es-MX")} piezas en {filas.length} productos</p>
-        </div>
-        <div className="flex shrink-0 gap-1 rounded-lg border border-white/10 p-0.5 text-xs">
+    <Panel titulo="Lo que más tenemos en inventario" sub={`${totalPzas.toLocaleString("es-MX")} piezas en ${filas.length} productos`}
+      derecha={
+        <div className="flex shrink-0 gap-px rounded-md border border-white/10 p-0.5 text-xs">
           {[["cantidad", "Cantidad"], ["tiempo", "Tiempo"]].map(([v, l]) => (
-            <button key={v} onClick={() => setVista(v)} className="rounded-md px-2.5 py-1"
-              style={vista === v ? { background: "rgba(37,36,35,0.08)", color: T.tinta } : { color: T.apagado }}>{l}</button>
+            <button key={v} onClick={() => setVista(v)} className="rounded-[3px] px-2.5 py-1"
+              style={vista === v ? { background: "rgba(59,151,230,0.22)", color: T.tinta } : { color: T.apagado }}>{l}</button>
           ))}
         </div>
-      </div>
-
-      <div className="mt-3 space-y-0.5">
+      }>
+      <div className="space-y-0.5">
         {lista.map((f) => {
           const val = vista === "cantidad" ? f.piezas : f.dias;
           const col = vista === "cantidad" ? { c: T.azul, o: 1 } : colorDias(f.dias);
@@ -67,6 +63,6 @@ export default function InventarioTop({ productos = [] }) {
           {todos ? "Ver menos" : `Ver más (${Math.min(orden.length, 25)})`}
         </button>
       )}
-    </section>
+    </Panel>
   );
 }

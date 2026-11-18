@@ -144,7 +144,7 @@ export default function Coleccion() {
           <input className="input" placeholder="Buscar carta…" value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="flex gap-2 text-xs">
             {["Disponibles", "Vendidas", "Todas"].map((f) => (
-              <button key={f} onClick={() => setFiltro(f)} className={`rounded-full border px-3 py-1 ${filtro === f ? "border-amber-500 text-amber-300" : "border-white/10 text-white/60"}`}>{f}</button>
+              <button key={f} onClick={() => setFiltro(f)} className={`rounded-md border px-3 py-1 ${filtro === f ? "border-amber-500 text-amber-300" : "border-white/10 text-white/60"}`}>{f}</button>
             ))}
             <span className="ml-auto self-center text-white/40">{lista.length}</span>
           </div>
@@ -193,7 +193,7 @@ export default function Coleccion() {
                       {faltaVentas ? (
                         <div className="space-y-2 text-amber-300">
                           <p>Falta crear la tabla de ventas sueltas. Pega esto en Supabase (SQL Editor), córrelo una vez y vuelve a abrir:</p>
-                          <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-white/80">{SQL_VENTAS}</pre>
+                          <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-white/80">{SQL_VENTAS}</pre>
                         </div>
                       ) : (
                         <>

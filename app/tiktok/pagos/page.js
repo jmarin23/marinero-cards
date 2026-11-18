@@ -131,7 +131,7 @@ export default function ConciliarPagos() {
       {faltaSQL && (
         <div className="card space-y-2 border-amber-500/50 text-sm">
           <div className="text-amber-300">Antes de guardar, corre esto una vez en el SQL Editor de Supabase:</div>
-          <pre className="overflow-x-auto rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{SQL}</pre>
+          <pre className="overflow-x-auto rounded-lg bg-black/40 p-2 text-xs text-white/80">{SQL}</pre>
           <button className="underline text-amber-300" onClick={() => navigator.clipboard?.writeText(SQL)}>Copiar</button>
           <button className="ml-4 underline text-white/60" onClick={cargar}>Ya lo corrí</button>
         </div>

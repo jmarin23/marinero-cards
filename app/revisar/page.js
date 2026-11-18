@@ -109,7 +109,7 @@ export default function Revisar() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {tabs.map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`shrink-0 rounded-full border px-3 py-1 text-sm ${tab === k ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{l} ({vistas[k].length})</button>
+            className={`shrink-0 rounded-md border px-3 py-1 text-sm ${tab === k ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{l} ({vistas[k].length})</button>
         ))}
       </div>
       {msg && <div className={`card text-sm ${msg.ok ? "text-emerald-300" : "text-red-300"}`}>{msg.t}</div>}

@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-// Tema claro estilo Power BI / Fluent. "white" pasa a ser la tinta (texto y bordes tenues) para no reescribir cada pantalla.
+// Tema oscuro estilo Power BI. "white" es la tinta (texto y bordes tenues) y sale de una variable CSS.
 module.exports = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -14,10 +14,10 @@ module.exports = {
         white: "rgb(var(--ink) / <alpha-value>)",
         surface: "rgb(var(--surface) / <alpha-value>)",
         // acento azul (antes amarillo)
-        amber: { 200: "#0B4F8A", 300: "#0F6CBD", 400: "#0F6CBD", 500: "#0F6CBD" },
-        emerald: { 300: "#107C10", 400: "#107C10", 500: "#107C10" },
-        red: { 300: "#C50F1F", 400: "#C50F1F", 500: "#C50F1F", 600: "#B10E1C" },
-        sky: { 300: "#0B5A9E" },
+        amber: { 200: "#B3D7F7", 300: "#6DB3F2", 400: "#4BA3EE", 500: "#2B88D8" },
+        emerald: { 300: "#6FD3A0", 400: "#4CC38A", 500: "#2EA66B" },
+        red: { 300: "#FF8F8C", 400: "#F2726F", 500: "#E5484D", 600: "#C93C41" },
+        sky: { 300: "#8CC8F7" },
       },
       borderRadius: { lg: "0.25rem", xl: "0.375rem", "2xl": "0.5rem" },
       fontFamily: { sans: ['"Segoe UI"', "system-ui", "-apple-system", "Roboto", '"Helvetica Neue"', "Arial", "sans-serif"] },

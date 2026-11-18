@@ -19,20 +19,20 @@ export default function Alertas({ estancados = [], perdidas = [] }) {
   const maxPerd = Math.max(...perdidas.map((l) => Math.abs(num(l.ganancia_real))), 1);
 
   return (
-    <details className="group rounded-xl border border-white/10 shadow-sm" style={{ background: T.superficie }}>
-      <summary className="cursor-pointer list-none p-4">
+    <details className="group rounded-md border border-white/10" style={{ background: T.superficie }}>
+      <summary className="cursor-pointer list-none px-4 py-2.5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold" style={{ color: T.tinta }}>Alertas</h2>
+          <h3 className="text-[13px] font-semibold" style={{ color: T.tinta }}>Alertas</h3>
           <span className="text-xs transition-transform group-open:rotate-180" style={{ color: T.apagado }}>▾</span>
         </div>
         <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
           {perdidas.length > 0 && (
-            <span className="rounded-full px-2.5 py-1" style={{ background: "rgba(209,52,56,0.10)", color: T.rojo }}>
+            <span className="rounded-full px-2.5 py-1" style={{ background: "rgba(240,112,109,0.14)", color: T.rojo }}>
               {perdidas.length} lote{perdidas.length === 1 ? "" : "s"} con pérdida · {compacto(perdidaTotal)}
             </span>
           )}
           {estancados.length > 0 && (
-            <span className="rounded-full px-2.5 py-1" style={{ background: "rgba(230,108,55,0.14)", color: "#B4501F" }}>
+            <span className="rounded-full px-2.5 py-1" style={{ background: "rgba(232,116,59,0.16)", color: "#f0a07a" }}>
               {estancados.length} producto{estancados.length === 1 ? "" : "s"} sin moverse · {compacto(total)} parados
             </span>
           )}

@@ -191,7 +191,7 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
           <div key={k} className="flex gap-2 overflow-x-auto pb-1">
             {["", ...vals].map((v) => (
               <button key={v || "todos"} onClick={() => setChips({ ...chips, [k]: v })}
-                className={`shrink-0 rounded-full border px-3 py-1 text-sm ${(chips[k] || "") === v ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{v ? (k === "id_lote" ? filas.find((r) => r.id_lote === v)?._lote || v : v) : k === "id_lote" ? "Todos los lotes" : `Todos (${k})`}</button>
+                className={`shrink-0 rounded-md border px-3 py-1 text-sm ${(chips[k] || "") === v ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{v ? (k === "id_lote" ? filas.find((r) => r.id_lote === v)?._lote || v : v) : k === "id_lote" ? "Todos los lotes" : `Todos (${k})`}</button>
             ))}
           </div>
         );

@@ -60,7 +60,7 @@ export default function FotoLote({ idLote }) {
     return (
       <div className="card space-y-2 border-amber-500/40 text-sm text-amber-300">
         <p>Para guardar la foto del pedido corre esto una vez en Supabase (SQL Editor) y vuelve a abrir:</p>
-        <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{SQL}</pre>
+        <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-xs text-white/80">{SQL}</pre>
       </div>
     );
   }

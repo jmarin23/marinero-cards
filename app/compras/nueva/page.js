@@ -209,7 +209,7 @@ export default function NuevaCompra() {
       {faltaSQL && (
         <div className="card space-y-2 border-amber-500/40 text-sm text-amber-300">
           <p>Para que la app recuerde el tipo de cambio, la aduana y los precios originales de cada compra, corre esto una vez en Supabase (SQL Editor). Mientras tanto puedes usar la pantalla, pero esos datos no se guardan.</p>
-          <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{`alter table lotes add column if not exists compra jsonb;
+          <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-xs text-white/80">{`alter table lotes add column if not exists compra jsonb;
 alter table productos add column if not exists precio_origen numeric;`}</pre>
         </div>
       )}

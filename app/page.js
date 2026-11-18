@@ -33,8 +33,11 @@ export default async function Tablero() {
   const dataCats = (cats.data || []).map((c) => ({ categoria: c.categoria, costo: num(c.costo) }));
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Tablero</h1>
+    <div className="space-y-4">
+      <div className="flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Tablero</h1>
+        <span className="text-xs text-white/40">Resumen del negocio</span>
+      </div>
 
       <Resumen r={r} meses={dataMeses} />
 
@@ -46,11 +49,11 @@ export default async function Tablero() {
 
       <PanelPagos />
 
-      <Charts lotes={dataLotes} canales={dataCanales} meses={dataMeses} categorias={dataCats} />
-
-      <InventarioTop productos={enBodega.data || []} />
-
-      <Alertas estancados={estancados.data || []} perdidas={perdidas.data || []} />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Charts lotes={dataLotes} canales={dataCanales} meses={dataMeses} categorias={dataCats} />
+        <InventarioTop productos={enBodega.data || []} />
+        <Alertas estancados={estancados.data || []} perdidas={perdidas.data || []} />
+      </div>
     </div>
   );
 }

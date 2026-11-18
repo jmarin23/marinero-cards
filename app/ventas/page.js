@@ -79,7 +79,7 @@ export default function UltimasVentas() {
       <input className="input" placeholder="Buscar por producto, monto, ID, nota…" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {["Todas", "Por buscar", "Pagado", "En espera", "Sin empatar"].map((f) => (
-          <button key={f} onClick={() => setFiltro(f)} className={`rounded-full border px-3 py-1 ${filtro === f ? "border-amber-500 text-amber-300" : "border-white/10 text-white/60"}`}>
+          <button key={f} onClick={() => setFiltro(f)} className={`rounded-md border px-3 py-1 ${filtro === f ? "border-amber-500 text-amber-300" : "border-white/10 text-white/60"}`}>
             {f}{f === "Por buscar" && porBuscar.length ? ` (${porBuscar.length})` : ""}
           </button>
         ))}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, LabelList } from "recharts";
 import { mxn, compacto } from "@/lib/format";
 import { T } from "@/components/Resumen";
+import Panel from "@/components/Panel";
 
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const etiquetaMes = (m, conAnio) => {
@@ -11,18 +12,7 @@ const etiquetaMes = (m, conAnio) => {
 };
 
 function Tarjeta({ titulo, sub, children, derecha }) {
-  return (
-    <section className="rounded-xl border border-white/10 p-4 shadow-sm" style={{ background: T.superficie }}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold" style={{ color: T.tinta }}>{titulo}</h3>
-          {sub && <p className="mt-0.5 text-xs" style={{ color: T.apagado }}>{sub}</p>}
-        </div>
-        {derecha}
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
+  return <Panel titulo={titulo} sub={sub} derecha={derecha}>{children}</Panel>;
 }
 
 const Llave = ({ color, texto }) => (
@@ -36,7 +26,7 @@ function TooltipMes({ active, payload }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-lg border px-3 py-2 text-xs shadow-lg" style={{ background: "#FFFFFF", borderColor: "rgba(37,36,35,0.15)" }}>
+    <div className="rounded-lg border px-3 py-2 text-xs shadow-lg" style={{ background: "#15171a", borderColor: "rgba(244,243,241,0.14)" }}>
       <div className="text-base font-semibold" style={{ color: T.tinta }}>{mxn(d.monto)}</div>
       <div style={{ color: T.tinta2 }}>{d.nombre}</div>
     </div>
@@ -56,7 +46,7 @@ function VentasMes({ meses }) {
             <CartesianGrid vertical={false} stroke={T.rejilla} />
             <XAxis dataKey="nombre" tickLine={false} axisLine={{ stroke: T.base }} tick={{ fill: T.apagado, fontSize: 11 }} />
             <YAxis tickLine={false} axisLine={false} tick={{ fill: T.apagado, fontSize: 11 }} tickFormatter={(v) => (v === 0 ? "0" : compacto(v).replace("$", ""))} width={40} />
-            <Tooltip content={<TooltipMes />} cursor={{ fill: "rgba(37,36,35,0.05)" }} />
+            <Tooltip content={<TooltipMes />} cursor={{ fill: "rgba(244,243,241,0.05)" }} />
             <Bar dataKey="monto" barSize={22} radius={[4, 4, 0, 0]} isAnimationActive={false}>
               {data.map((d, i) => <Cell key={d.mes} fill={i === ultimo ? T.azul : T.azulSuave} />)}
               <LabelList dataKey="monto" position="top" content={({ x, y, width, value, index }) => (index === ultimo
@@ -182,7 +172,7 @@ export default function Charts({ lotes, canales, meses, categorias }) {
   const mejor = lotes.length ? [...lotes].sort((a, b) => b.ganancia - a.ganancia)[0] : null;
   const hayPerdida = lotes.some((l) => l.ganancia < 0);
   return (
-    <div className="space-y-3">
+    <>
       <Tarjeta titulo="Ventas por mes" sub="Mes en curso resaltado"><VentasMes meses={meses} /></Tarjeta>
       <Tarjeta titulo="Ganancia por lote" sub={mejor ? `Mejor: ${mejor.nombre} · ${compacto(mejor.ganancia)}` : null}
         derecha={hayPerdida ? <div className="flex shrink-0 flex-col items-end gap-1"><Llave color={T.azul} texto="Ganancia" /><Llave color={T.rojo} texto="Pérdida" /></div> : null}>
@@ -192,6 +182,6 @@ export default function Charts({ lotes, canales, meses, categorias }) {
       <Tarjeta titulo="Inventario por categoría" sub="Costo de lo que sigue en bodega">
         <Ranking filas={categorias.map((c) => ({ nombre: c.categoria, valor: c.costo }))} />
       </Tarjeta>
-    </div>
+    </>
   );
 }

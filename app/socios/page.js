@@ -601,7 +601,7 @@ export default function Socios() {
         <div className="flex gap-2 overflow-x-auto pb-1">
           {nombres.map((nm) => (
             <button key={nm} onClick={() => setFiltro(nm)}
-              className={`shrink-0 rounded-full border px-3 py-1 text-sm ${filtro === nm ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{nm}</button>
+              className={`shrink-0 rounded-md border px-3 py-1 text-sm ${filtro === nm ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{nm}</button>
           ))}
         </div>
         <label className="flex items-center gap-2 text-sm text-white/60">

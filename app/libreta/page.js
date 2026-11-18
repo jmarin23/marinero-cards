@@ -239,7 +239,7 @@ export default function Libreta() {
         <h1 className="text-2xl font-semibold">Libreta</h1>
         <div className="card space-y-2 border-amber-500/40 text-sm text-amber-300">
           <p>Falta crear la tabla de la libreta. Pega esto en Supabase (SQL Editor), córrelo una vez y vuelve a abrir esta pantalla:</p>
-          <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{SQL}</pre>
+          <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-xs text-white/80">{SQL}</pre>
         </div>
       </div>
     );
@@ -289,7 +289,7 @@ export default function Libreta() {
 
       <div className="flex gap-2 text-xs">
         {[["pendientes", "Por pasar"], ["pasadas", "Ya pasadas"], ["todas", "Todas"]].map(([v, l]) => (
-          <button key={v} onClick={() => setFiltro(v)} className={`rounded-full border px-3 py-1 ${filtro === v ? "border-amber-500 text-amber-300" : "border-white/10 text-white/60"}`}>{l}</button>
+          <button key={v} onClick={() => setFiltro(v)} className={`rounded-md border px-3 py-1 ${filtro === v ? "border-amber-500 text-amber-300" : "border-white/10 text-white/60"}`}>{l}</button>
         ))}
         <span className="ml-auto self-center text-white/40">{vista.length}</span>
       </div>

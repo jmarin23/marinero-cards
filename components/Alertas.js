@@ -22,10 +22,10 @@ export default function Alertas({ estancados = [], perdidas = [] }) {
     <details className="group rounded-md border border-white/10" style={{ background: T.superficie }}>
       <summary className="cursor-pointer list-none px-4 py-2.5">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[13px] font-semibold" style={{ color: T.tinta }}>Alertas</h3>
+          <h3 className="text-[0.8125rem] font-semibold" style={{ color: T.tinta }}>Alertas</h3>
           <span className="text-xs transition-transform group-open:rotate-180" style={{ color: T.apagado }}>▾</span>
         </div>
-        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+        <div className="mt-2 flex flex-wrap gap-2 text-[0.6875rem]">
           {perdidas.length > 0 && (
             <span className="rounded-full px-2.5 py-1" style={{ background: "rgba(240,112,109,0.14)", color: T.rojo }}>
               {perdidas.length} lote{perdidas.length === 1 ? "" : "s"} con pérdida · {compacto(perdidaTotal)}
@@ -45,7 +45,7 @@ export default function Alertas({ estancados = [], perdidas = [] }) {
                   style={{ width: `${(t.monto / total) * 100}%`, background: T.naranja, opacity: t.op, borderRadius: i === 0 ? "4px 0 0 4px" : i === a.length - 1 ? "0 4px 4px 0" : 0 }} />
               ))}
             </div>
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]" style={{ color: T.apagado }}>
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[0.6875rem]" style={{ color: T.apagado }}>
               {tramos.filter((t) => t.monto > 0).map((t) => (
                 <span key={t.k} className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ background: T.naranja, opacity: t.op }} />{t.k} <span style={{ color: T.tinta2 }}>{compacto(t.monto)}</span>
@@ -62,7 +62,7 @@ export default function Alertas({ estancados = [], perdidas = [] }) {
             <div className="mb-1 text-xs" style={{ color: T.apagado }}>Lotes con pérdida</div>
             {perdidas.map((l) => (
               <div key={l.id_lote} className="py-1.5">
-                <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
                   <span className="min-w-0 truncate" style={{ color: T.tinta2 }}>{l.nombre}</span>
                   <span className="shrink-0 font-medium tabular-nums" style={{ color: T.rojo }}>{mxn(l.ganancia_real)}</span>
                 </div>
@@ -78,7 +78,7 @@ export default function Alertas({ estancados = [], perdidas = [] }) {
             <div className="mb-1 text-xs" style={{ color: T.apagado }}>Lo que más dinero tiene parado (más de 30 días sin venderse)</div>
             {top.slice(0, 8).map((p) => (
               <div key={p.id_producto} className="py-1.5">
-                <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
                   <span className="min-w-0 truncate" style={{ color: T.tinta2 }}>{p.nombre} <span style={{ color: T.apagado }}>×{num(p.inventario)} · {num(p.dias_en_inventario)} d</span></span>
                   <span className="shrink-0 font-medium tabular-nums" style={{ color: T.tinta }}>{mxn(p.costo_inventario)}</span>
                 </div>

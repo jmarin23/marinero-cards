@@ -30,8 +30,8 @@ function Sparkline({ valores }) {
 function Kpi({ label, value, acento, delta, deltaBueno, sub, spark, barra }) {
   return (
     <div className="flex flex-col rounded-md border border-white/10 p-4" style={{ background: T.superficie, borderTop: `2px solid ${acento}` }}>
-      <div className="text-[12px]" style={{ color: T.apagado }}>{label}</div>
-      <div className="mt-1 text-[28px] font-semibold leading-none tracking-tight" style={{ color: T.tinta }}>{value}</div>
+      <div className="text-[0.75rem]" style={{ color: T.apagado }}>{label}</div>
+      <div className="mt-1 text-[1.75rem] font-semibold leading-none tracking-tight" style={{ color: T.tinta }}>{value}</div>
       {delta != null && (
         <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium" style={{ color: deltaBueno ? T.bueno : T.rojo }}>
           <span aria-hidden>{deltaBueno ? "▲" : "▼"}</span>{delta}
@@ -43,7 +43,7 @@ function Kpi({ label, value, acento, delta, deltaBueno, sub, spark, barra }) {
         </div>
       )}
       {spark ? <div className="mt-2"><Sparkline valores={spark} /></div> : null}
-      {sub && <div className="mt-auto pt-2 text-[11px]" style={{ color: T.apagado }}>{sub}</div>}
+      {sub && <div className="mt-auto pt-2 text-[0.6875rem]" style={{ color: T.apagado }}>{sub}</div>}
     </div>
   );
 }

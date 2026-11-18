@@ -35,11 +35,11 @@ export default function InventarioTop({ productos = [] }) {
           const col = vista === "cantidad" ? { c: T.azul, o: 1 } : colorDias(f.dias);
           return (
             <div key={f.id} className="rounded-md px-2 py-1.5 hover:bg-white/5" title={`${f.nombre}: ${f.piezas} pzas · ${f.dias} días · ${mxn(f.costo)} a costo`}>
-              <div className="flex items-baseline justify-between gap-3 text-[13px]">
+              <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
                 <span className="min-w-0 truncate" style={{ color: T.tinta2 }}>{f.nombre}</span>
                 <span className="shrink-0 font-medium tabular-nums" style={{ color: T.tinta }}>
                   {vista === "cantidad" ? `${f.piezas} pzas` : `${f.dias} días`}
-                  <span className="ml-1.5 text-[11px] font-normal" style={{ color: T.apagado }}>{vista === "cantidad" ? compacto(f.costo) : `×${f.piezas}`}</span>
+                  <span className="ml-1.5 text-[0.6875rem] font-normal" style={{ color: T.apagado }}>{vista === "cantidad" ? compacto(f.costo) : `×${f.piezas}`}</span>
                 </span>
               </div>
               <div className="relative mt-1.5 h-2.5">
@@ -52,7 +52,7 @@ export default function InventarioTop({ productos = [] }) {
       </div>
 
       {vista === "tiempo" && (
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px]" style={{ color: T.apagado }}>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-[0.6875rem]" style={{ color: T.apagado }}>
           {[["hasta 30 días", colorDias(1)], ["30–60", colorDias(45)], ["60–90", colorDias(75)], ["más de 90", colorDias(120)]].map(([l, c]) => (
             <span key={l} className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ background: c.c, opacity: c.o }} />{l}</span>
           ))}

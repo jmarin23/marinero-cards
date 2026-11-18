@@ -181,7 +181,7 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
       {resumen && (
         <div className="grid grid-cols-2 gap-2">
           {resumen.map((x) => (
-            <div key={x.l} className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">{x.l}</div><div className="font-bold text-amber-400">{x.v}</div></div>
+            <div key={x.l} className="card !p-3"><div className="text-[0.6875rem] uppercase tracking-wide text-white/50">{x.l}</div><div className="font-bold text-amber-400">{x.v}</div></div>
           ))}
         </div>
       )}

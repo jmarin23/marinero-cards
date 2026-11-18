@@ -21,7 +21,7 @@ const grupos = ["Reportes", "Captura", "Administración"];
 
 const Marca = () => (
   <span className="flex items-center gap-2">
-    <span className="grid h-6 w-6 place-items-center rounded-[3px] bg-amber-500 text-[11px] font-bold text-[#ffffff]">M</span>
+    <span className="grid h-6 w-6 place-items-center rounded-[3px] bg-amber-500 text-[0.6875rem] font-bold text-[#ffffff]">M</span>
     <span className="text-sm font-semibold tracking-tight">Marinero Cards</span>
   </span>
 );
@@ -38,7 +38,7 @@ export default function Shell({ children }) {
         <nav className="flex-1 space-y-4 overflow-y-auto py-4">
           {grupos.map((g) => (
             <div key={g}>
-              <div className="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-white/35">{g}</div>
+              <div className="px-4 pb-1 text-[0.625rem] font-semibold uppercase tracking-wider text-white/35">{g}</div>
               {items.filter((i) => i.grupo === g).map((i) => {
                 const on = i.match(path);
                 return (
@@ -51,7 +51,7 @@ export default function Shell({ children }) {
             </div>
           ))}
         </nav>
-        <div className="border-t border-white/10 px-4 py-3 text-[11px] text-white/30">Control de negocio</div>
+        <div className="border-t border-white/10 px-4 py-3 text-[0.6875rem] text-white/30">Control de negocio</div>
       </aside>
 
       <div className="md:pl-56">
@@ -61,7 +61,7 @@ export default function Shell({ children }) {
           {activo && <span className="hidden text-sm text-white/40 md:inline">/</span>}
           {activo && <span className="hidden text-sm font-medium md:inline">{activo.label}</span>}
         </header>
-        <main className={`mx-auto px-4 pb-24 pt-5 md:px-6 md:pb-10 ${path === "/" ? "max-w-6xl" : "max-w-3xl"}`}>{children}</main>
+        <main className={`mx-auto px-4 pb-24 pt-5 md:px-6 md:pb-10 ${path === "/" ? "max-w-6xl" : "max-w-4xl"}`}>{children}</main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-surface/95 backdrop-blur md:hidden">
@@ -70,7 +70,7 @@ export default function Shell({ children }) {
             const on = i.match(path);
             return (
               <Link key={i.href} href={i.href}
-                className={`flex flex-1 flex-col items-center gap-0.5 border-t-2 pb-2 pt-2 text-[10px] ${on ? "border-amber-500 text-amber-400" : "border-transparent text-white/55"}`}>
+                className={`flex flex-1 flex-col items-center gap-0.5 border-t-2 pb-2 pt-2 text-[0.625rem] ${on ? "border-amber-500 text-amber-400" : "border-transparent text-white/55"}`}>
                 <Ico d={i.d} />{i.label}
               </Link>
             );

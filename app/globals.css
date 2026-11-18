@@ -9,6 +9,9 @@
   --surface: 27 29 32;     /* paneles */
   color-scheme: dark;
 }
+html { font-size: 17px; }
+@media (min-width: 1024px) { html { font-size: 18px; } }
+@media (min-width: 1536px) { html { font-size: 19px; } }
 body { background: var(--background); color: var(--foreground); font-variant-numeric: tabular-nums; }
 .card { @apply rounded-md border border-white/10 bg-surface p-4; }
 .btn { @apply rounded-md bg-amber-500 px-4 py-3 font-semibold active:scale-95 disabled:opacity-40; color: #fff; }

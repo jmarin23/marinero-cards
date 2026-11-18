@@ -16,7 +16,7 @@ function Tarjeta({ titulo, sub, children, derecha }) {
 }
 
 const Llave = ({ color, texto }) => (
-  <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: T.tinta2 }}>
+  <span className="inline-flex items-center gap-1.5 text-[0.6875rem]" style={{ color: T.tinta2 }}>
     <span className="inline-block h-2 w-2 rounded-full" style={{ background: color }} />{texto}
   </span>
 );
@@ -44,13 +44,13 @@ function VentasMes({ meses }) {
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 22, right: 4, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke={T.rejilla} />
-            <XAxis dataKey="nombre" tickLine={false} axisLine={{ stroke: T.base }} tick={{ fill: T.apagado, fontSize: 11 }} />
-            <YAxis tickLine={false} axisLine={false} tick={{ fill: T.apagado, fontSize: 11 }} tickFormatter={(v) => (v === 0 ? "0" : compacto(v).replace("$", ""))} width={40} />
+            <XAxis dataKey="nombre" tickLine={false} axisLine={{ stroke: T.base }} tick={{ fill: T.apagado, fontSize: 12.5 }} />
+            <YAxis tickLine={false} axisLine={false} tick={{ fill: T.apagado, fontSize: 12.5 }} tickFormatter={(v) => (v === 0 ? "0" : compacto(v).replace("$", ""))} width={40} />
             <Tooltip content={<TooltipMes />} cursor={{ fill: "rgba(244,243,241,0.05)" }} />
             <Bar dataKey="monto" barSize={22} radius={[4, 4, 0, 0]} isAnimationActive={false}>
               {data.map((d, i) => <Cell key={d.mes} fill={i === ultimo ? T.azul : T.azulSuave} />)}
               <LabelList dataKey="monto" position="top" content={({ x, y, width, value, index }) => (index === ultimo
-                ? <text x={x + width / 2} y={y - 6} textAnchor="middle" fontSize="11" fontWeight="600" fill={T.tinta}>{compacto(value)}</text> : null)} />
+                ? <text x={x + width / 2} y={y - 6} textAnchor="middle" fontSize="12.5" fontWeight="600" fill={T.tinta}>{compacto(value)}</text> : null)} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -73,10 +73,10 @@ function Fila({ nombre, valor, texto, extra, color, ini, fin, cero }) {
   const negativa = valor < 0;
   return (
     <div className="group rounded-md px-2 py-1.5 transition-colors hover:bg-white/5" title={`${nombre}: ${texto}${extra ? ` · ${extra}` : ""}`}>
-      <div className="flex items-baseline justify-between gap-3 text-[13px]">
+      <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
         <span className="min-w-0 truncate" style={{ color: T.tinta2 }}>{nombre}</span>
         <span className="shrink-0 font-medium tabular-nums" style={{ color: T.tinta }}>
-          {texto}{extra && <span className="ml-1.5 text-[11px] font-normal" style={{ color: negativa ? T.rojo : T.apagado }}>{extra}</span>}
+          {texto}{extra && <span className="ml-1.5 text-[0.6875rem] font-normal" style={{ color: negativa ? T.rojo : T.apagado }}>{extra}</span>}
         </span>
       </div>
       <div className="relative mt-1.5 h-2.5">
@@ -156,10 +156,10 @@ function Canales({ canales }) {
       </div>
       <div className="mt-3 space-y-0.5">
         {filas.map((c) => (
-          <div key={c.canal} className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-[13px] hover:bg-white/5">
+          <div key={c.canal} className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-[0.8125rem] hover:bg-white/5">
             <Llave color={color(c.canal)} texto={c.canal} />
             <span className="tabular-nums" style={{ color: T.tinta }}>
-              {mxn(c.monto)} <span className="ml-1.5 text-[11px]" style={{ color: T.apagado }}>{Math.round((c.monto / suma) * 100)}%</span>
+              {mxn(c.monto)} <span className="ml-1.5 text-[0.6875rem]" style={{ color: T.apagado }}>{Math.round((c.monto / suma) * 100)}%</span>
             </span>
           </div>
         ))}

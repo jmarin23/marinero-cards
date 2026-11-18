@@ -198,7 +198,7 @@ export default function Socios() {
     return (
       <div className="shrink-0 text-right leading-tight">
         <div className={`text-base font-semibold ${pc >= 0 ? "text-emerald-400" : "text-red-400"}`}>{pc >= 0 ? "+" : "−"}{Math.abs(pc)}%</div>
-        <div className="text-[10px] text-white/40">ganancia s/ costo</div>
+        <div className="text-[0.625rem] text-white/40">ganancia s/ costo</div>
       </div>
     );
   };

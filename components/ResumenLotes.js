@@ -153,7 +153,7 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado, onCambio 
   const tot = vistas.reduce((a, x) => ({ disp: a.disp + x.disp, piezas: a.piezas + x.piezas, costoDisp: a.costoDisp + x.costoDisp, reventaDisp: a.reventaDisp + x.reventaDisp }), { disp: 0, piezas: 0, costoDisp: 0, reventaDisp: 0 });
 
   if (!datos) return <p className="text-white/50">Cargando…</p>;
-  const Dato = ({ l, v, cls = "" }) => (<div><div className="text-[11px] uppercase tracking-wide text-white/50">{l}</div><div className={`font-semibold ${cls}`}>{v}</div></div>);
+  const Dato = ({ l, v, cls = "" }) => (<div><div className="text-[0.6875rem] uppercase tracking-wide text-white/50">{l}</div><div className={`font-semibold ${cls}`}>{v}</div></div>);
 
   // se llama como función (no como componente) para no perder el foco al escribir
   const PanelAjuste = ({ x }) => {
@@ -204,9 +204,9 @@ export default function ResumenLotes({ onVerLote, soloLote, onBorrado, onCambio 
         <input type="checkbox" checked={todos} onChange={(e) => setTodos(e.target.checked)} /> Mostrar también los lotes agotados
       </label>}
       {!soloLote && <div className="grid grid-cols-3 gap-2">
-        <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">Disponibles</div><div className="font-bold text-amber-400">{tot.disp.toLocaleString("es-MX")}</div></div>
-        <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">A costo</div><div className="font-bold text-amber-400">{mxn(tot.costoDisp)}</div></div>
-        <div className="card !p-3"><div className="text-[11px] uppercase tracking-wide text-white/50">A reventa</div><div className="font-bold text-amber-400">{mxn(tot.reventaDisp)}</div></div>
+        <div className="card !p-3"><div className="text-[0.6875rem] uppercase tracking-wide text-white/50">Disponibles</div><div className="font-bold text-amber-400">{tot.disp.toLocaleString("es-MX")}</div></div>
+        <div className="card !p-3"><div className="text-[0.6875rem] uppercase tracking-wide text-white/50">A costo</div><div className="font-bold text-amber-400">{mxn(tot.costoDisp)}</div></div>
+        <div className="card !p-3"><div className="text-[0.6875rem] uppercase tracking-wide text-white/50">A reventa</div><div className="font-bold text-amber-400">{mxn(tot.reventaDisp)}</div></div>
       </div>}
       {!soloLote && <p className="text-xs text-white/40">{vistas.length} lotes · toca uno para ver sus productos</p>}
       {vistas.map((x) => (

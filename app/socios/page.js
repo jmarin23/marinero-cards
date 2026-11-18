@@ -207,6 +207,7 @@ export default function Socios() {
   };
   const norm = (t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const q = norm(busca).trim();
+  const verPagado = alCorriente || !!q; // al buscar se muestra también lo ya pagado
   // coincide si cada palabra escrita aparece en el nombre, socio, lote o productos
   const coincide = (...txt) => !q || q.split(/\s+/).every((w) => norm(txt.flat().join(" ")).includes(w));
   const txtProds = (ps) => ps.map((p) => `${p.nombre} ${p.id_producto}`);
@@ -229,7 +230,7 @@ export default function Socios() {
     const l = lineas(u);
     if (!l.tieneCosto && !l.tieneGan) return false;
     const pendiente = (l.tieneCosto && l.falCosto > TOL) || (l.tieneGan && l.falGan > TOL);
-    return alCorriente || pendiente;
+    return verPagado || pendiente;
   });
 
   async function pagar(u, tipo, monto, falta) {
@@ -594,7 +595,7 @@ export default function Socios() {
 
       <section className="space-y-3">
         <div className="relative">
-          <input className="input !pr-9" type="search" placeholder="Buscar lote, producto o socio…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+          <input className="input !pr-9" type="search" placeholder="Buscar lote, producto o socio…" value={busca} onChange={(e) => { setBusca(e.target.value); if (e.target.value && filtro !== "Todos") setFiltro("Todos"); }} />
           {busca && <button aria-label="Borrar búsqueda" onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">✕</button>}
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -628,7 +629,7 @@ export default function Socios() {
               const tieneInv = l.puse > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
               if (!tieneInv && !tieneGan) return null;
               if (!coincide(l.nombre, l.idLote || "", [...l.socios], txtProds(l.productos))) return null;
-              if (!alCorriente && !((tieneInv && falInv > TOL) || (tieneGan && falGan > TOL))) return null;
+              if (!verPagado && !((tieneInv && falInv > TOL) || (tieneGan && falGan > TOL))) return null;
               return (
                 <div key={l.k} className="card space-y-2">
                   <div className="flex items-start justify-between gap-3">
@@ -638,8 +639,8 @@ export default function Socios() {
                     </div>
                     {chipPct(l.productos)}
                   </div>
-                  {tieneInv && (alCorriente || falInv > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
-                  {tieneGan && (alCorriente || falGan > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
+                  {tieneInv && (verPagado || falInv > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
+                  {tieneGan && (verPagado || falGan > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
                 </div>
               );
             })}
@@ -656,12 +657,12 @@ export default function Socios() {
                 </div>
                 {chipPct(u.productos)}
               </div>
-              {l.tieneCosto && (alCorriente || l.falCosto > TOL) && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
-              {l.tieneGan && (alCorriente || l.falGan > TOL) && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
+              {l.tieneCosto && (verPagado || l.falCosto > TOL) && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
+              {l.tieneGan && (verPagado || l.falGan > TOL) && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
             </div>
           );
         })}
-        {filtro !== "Yo" && filas.length === 0 && <p className="text-sm text-white/50">Nada pendiente con este filtro.</p>}
+        {filtro !== "Yo" && filas.length === 0 && <p className="text-sm text-white/50">{q ? `No encontré nada con “${busca}”.` : "Nada pendiente con este filtro."}</p>}
         <p className="text-xs text-white/40">
           Lo que corresponde se calcula con las ventas capturadas. Si capturas una venta después de haber pagado, solo te muestra lo que falta; nada se duplica.
         </p>

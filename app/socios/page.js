@@ -508,6 +508,32 @@ export default function Socios() {
     );
   }
 
+  // tarjeta de un lote mío (Yo): inversión y ganancia propias
+  const tarjetaYo = (l) => {
+    const u = { k: `Y|${l.k}`, socio: "Yo", lote: l.idLote, idProducto: l.idLote ? null : l.idProd, productos: l.productos, pagos: l.pagos };
+              const falInv = r2(l.puse - l.pagCosto), falGan = r2(l.mia - l.pagGan);
+              const tieneInv = l.puse > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
+              if (!tieneInv && !tieneGan) return null;
+              if (!coincide(l.nombre, l.idLote || "", [...l.socios], txtProds(l.productos))) return null;
+              const sinV = n(l.vend) === 0;
+              if (conVentas === "con" && sinV) return null;
+              if (conVentas === "sin" && !sinV) return null;
+              if (!verPagado && !sinV && !((tieneInv && falInv > TOL) || (tieneGan && falGan > TOL))) return null;
+              return (
+                <div key={l.k} className="card space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate">{l.nombre}</div>
+                      <div className="text-xs text-white/50">{l.socios.size ? `Con ${[...l.socios].join(", ")}` : "Solo mío"} · reparto: {repartoTxt(l)}{l.productos.length > 1 ? ` · ${l.productos.length} productos` : ""}</div>
+                    </div>
+                    {chipPct(l.productos)}
+                  </div>
+                  {tieneInv && (verPagado || sinV || falInv > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
+                  {tieneGan && (verPagado || sinV || falGan > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
+                </div>
+              );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -569,8 +595,10 @@ export default function Socios() {
       )}
 
       <section className="space-y-2">
+        {resumen.length > 0 && <p className="text-xs text-white/40">Toca un socio para ver solo sus lotes.</p>}
         {resumen.map((s) => (
-          <div key={s.socio} className="card">
+          <div key={s.socio} className={`card cursor-pointer transition-colors hover:border-amber-500/50 ${filtro === s.socio ? "!border-amber-500 bg-amber-500/10" : ""}`}
+            onClick={(e) => { if (e.target.closest("input,label,button,a")) return; setFiltro(filtro === s.socio ? "Todos" : s.socio); }}>
             <div className="flex items-baseline justify-between">
               <span className="font-semibold">{s.socio}</span>
               <span className={s.debo > TOL ? "font-bold text-amber-400" : s.debo < -TOL ? "text-sky-300" : "text-emerald-400"}>
@@ -603,6 +631,12 @@ export default function Socios() {
       </section>
 
       <section className="space-y-3">
+        {nombres.includes(filtro) && filtro !== "Todos" && filtro !== "Yo" && (
+          <div className="flex items-center justify-between rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+            <span>Mostrando solo los lotes de <b>{filtro}</b></span>
+            <button className="text-amber-300 underline" onClick={() => setFiltro("Todos")}>Ver todos</button>
+          </div>
+        )}
         <div className="relative">
           <input className="input !pr-9" type="search" placeholder="Buscar lote, producto o socio…" value={busca} onChange={(e) => setBusca(e.target.value)} />
           {busca && <button aria-label="Borrar búsqueda" onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">✕</button>}
@@ -634,30 +668,7 @@ export default function Socios() {
                 <span><b>{mxn(yo.totYo.inv)}</b> <span className="text-xs text-white/50">· pagué {mxn(yo.totYo.pagInv)} · falta </span><b className="text-amber-400">{mxn(yo.totYo.inv - yo.totYo.pagInv)}</b></span>
               </div>
             </div>
-            {yo.lotesYo.map((l) => {
-              const u = { k: `Y|${l.k}`, socio: "Yo", lote: l.idLote, idProducto: l.idLote ? null : l.idProd, productos: l.productos, pagos: l.pagos };
-              const falInv = r2(l.puse - l.pagCosto), falGan = r2(l.mia - l.pagGan);
-              const tieneInv = l.puse > TOL || l.pagCosto > TOL, tieneGan = Math.abs(l.mia) > TOL || l.pagGan > TOL;
-              if (!tieneInv && !tieneGan) return null;
-              if (!coincide(l.nombre, l.idLote || "", [...l.socios], txtProds(l.productos))) return null;
-              const sinV = n(l.vend) === 0;
-              if (conVentas === "con" && sinV) return null;
-              if (conVentas === "sin" && !sinV) return null;
-              if (!verPagado && !sinV && !((tieneInv && falInv > TOL) || (tieneGan && falGan > TOL))) return null;
-              return (
-                <div key={l.k} className="card space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate">{l.nombre}</div>
-                      <div className="text-xs text-white/50">{l.socios.size ? `Con ${[...l.socios].join(", ")}` : "Solo mío"} · reparto: {repartoTxt(l)}{l.productos.length > 1 ? ` · ${l.productos.length} productos` : ""}</div>
-                    </div>
-                    {chipPct(l.productos)}
-                  </div>
-                  {tieneInv && (verPagado || sinV || falInv > TOL) && lineaYo({ u, l, tipo: "Costo", debe: l.puse, pagado: l.pagCosto, falta: falInv })}
-                  {tieneGan && (verPagado || sinV || falGan > TOL) && lineaYo({ u, l, tipo: "Ganancia", debe: l.mia, pagado: l.pagGan, falta: falGan })}
-                </div>
-              );
-            })}
+            {yo.lotesYo.map(tarjetaYo)}
           </>
         )}
         {filtro !== "Yo" && filas.map((u) => {
@@ -680,7 +691,8 @@ export default function Socios() {
             </div>
           );
         })}
-        {filtro !== "Yo" && filas.length === 0 && <p className="text-sm text-white/50">{q ? `No encontré nada con “${busca}”.` : "Nada pendiente con este filtro."}</p>}
+        {filtro === "Todos" && yo.lotesYo.filter((l) => l.socios.size === 0).map(tarjetaYo)}
+        {filtro !== "Yo" && filas.length === 0 && (filtro !== "Todos" || !yo.lotesYo.some((l) => l.socios.size === 0 && tarjetaYo(l))) && <p className="text-sm text-white/50">{q ? `No encontré nada con “${busca}”.` : "Nada pendiente con este filtro."}</p>}
         <p className="text-xs text-white/40">
           Lo que corresponde se calcula con las ventas capturadas. Si capturas una venta después de haber pagado, solo te muestra lo que falta; nada se duplica.
         </p>

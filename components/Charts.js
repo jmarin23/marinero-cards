@@ -178,7 +178,7 @@ export default function Charts({ lotes, canales, meses, categorias }) {
         derecha={hayPerdida ? <div className="flex shrink-0 flex-col items-end gap-1"><Llave color={T.azul} texto="Ganancia" /><Llave color={T.rojo} texto="Pérdida" /></div> : null}>
         <GananciaLote lotes={lotes} />
       </Tarjeta>
-      <Tarjeta titulo="Ventas por canal" sub="Reparto del total vendido"><Canales canales={canales} /></Tarjeta>
+      <Tarjeta titulo="Ventas por canal" sub="Todo lo vendido: pagado, en espera y sin empatar (sin reembolsos)"><Canales canales={canales} /></Tarjeta>
       <Tarjeta titulo="Inventario por categoría" sub="Costo de lo que sigue en bodega">
         <Ranking filas={categorias.map((c) => ({ nombre: c.categoria, valor: c.costo }))} />
       </Tarjeta>

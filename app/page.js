@@ -6,6 +6,7 @@ import Link from "next/link";
 import Charts from "@/components/Charts";
 import Alertas from "@/components/Alertas";
 import InventarioTop from "@/components/InventarioTop";
+import CuadreTikTok from "@/components/CuadreTikTok";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,8 @@ export default async function Tablero() {
       )}
 
       <PanelPagos />
+
+      <CuadreTikTok />
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Charts lotes={dataLotes} canales={dataCanales} meses={dataMeses} categorias={dataCats} />

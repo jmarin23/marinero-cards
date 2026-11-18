@@ -73,7 +73,7 @@ export default function Pagarme() {
         if (!l.socios.has(p.socio)) l.socios.set(p.socio, { socio: p.socio, pct, debe: 0, pagado: 0, gan: 0 });
         const so = l.socios.get(p.socio);
         so.gan += gLiq * pct;
-        so.debe += gLiq * pct + (p.quien_puso_costo === "Socio" ? (extra ? n(p.costo_total) : a.q * cu) : 0);
+        so.debe += gLiq * pct + (p.quien_puso_costo === "Socio" ? n(p.costo_total) : 0);
         l.mi += gLiq * Math.max(1 - pct - imp, 0);
       } else l.mi += gLiq * (1 - imp);
       l.imp += gLiq * imp; l.g += gLiq;
@@ -211,7 +211,7 @@ export default function Pagarme() {
       )}
 
       <p className="text-xs text-white/40">
-        Solo cuentan las ventas en estado Pagado, con el costo de lo vendido ya descontado. Un lote con socios aparece hasta que ya les pagaste su parte de lo liquidado.
+        Solo cuentan las ventas en estado Pagado, con el costo de lo vendido ya descontado. Un lote con socios aparece hasta que ya les pagaste su parte de lo liquidado y el costo completo que pusieron ellos.
       </p>
     </div>
   );

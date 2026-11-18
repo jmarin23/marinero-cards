@@ -88,7 +88,7 @@ export default function Socios() {
       });
       const u = U.get(k);
       u.productos.push(p);
-      u.debeCosto += p.quien_puso_costo === "Socio" ? n(p.costo_total) - n(p.costo_inventario) : 0;
+      u.debeCosto += p.quien_puso_costo === "Socio" ? n(p.costo_total) : 0; // el costo se paga completo, haya venta o no
       u.parte += n(p.ganancia_real) * pctDe(p.socio);
     }
     const prodPorId = Object.fromEntries(prods.map((p) => [p.id_producto, p]));
@@ -110,7 +110,7 @@ export default function Socios() {
       const s = alta(p.socio);
       s.ganancia += n(p.ganancia_real);
       s.parte += n(p.ganancia_real) * pctDe(p.socio);
-      if (p.quien_puso_costo === "Socio") s.cpr += n(p.costo_total) - n(p.costo_inventario);
+      if (p.quien_puso_costo === "Socio") s.cpr += n(p.costo_total);
     }
     for (const r of registrados) alta(r); // socios agregados a mano, aunque aún no tengan productos
     for (const g of pagosSoc) { const s = alta(g.socio); s.pagado += n(g.monto); if (g.tipo === "Costo") s.pagCosto += n(g.monto); else s.pagGan += n(g.monto); }
@@ -126,7 +126,7 @@ export default function Socios() {
     if (huerfanos.length) avisos.push({ t: `${huerfanos.length} pagos no se pueden ligar a ningún producto o lote con ese socio (${huerfanos.slice(0, 3).map((g) => g.id_pago).join(", ")}).`, a: "/datos/pagos_socios" });
     for (const u of U.values()) {
       const sinVentas = u.productos.every((p) => n(p.vendidas) === 0);
-      if (sinVentas && (u.pagCosto + u.pagGan) > TOL) avisos.push({ t: `${u.nombre}: ya registraste ${mxn(u.pagCosto + u.pagGan)} de pago pero aún no hay ventas capturadas. Se acomoda solo al meter las ventas.`, a: null });
+      if (sinVentas && u.pagGan > TOL) avisos.push({ t: `${u.nombre}: ya registraste ${mxn(u.pagGan)} de pago de ganancia pero aún no hay ventas capturadas. Se acomoda solo al meter las ventas.`, a: null });
     }
     return { unidades: [...U.values()], resumen, avisos };
   }, [prods, pagos, pctBase, pcts, registrados, lotes]);
@@ -351,11 +351,11 @@ export default function Socios() {
         <div className="mt-2 space-y-2 text-xs">
           {u.productos.map((p) => {
             const delSocio = p.quien_puso_costo === "Socio";
-            const v = delSocio ? n(p.costo_total) - n(p.costo_inventario) : 0;
+            const v = delSocio ? n(p.costo_total) : 0;
             const extra = p.categoria === "Costo extra";
             return (
               <Fila key={p.id_producto} titulo={p.nombre} v={v} gris={!delSocio} accion={!delSocio ? { t: `Lo pagó ${u.socio}`, f: () => loPagoElSocio([p.id_producto]) } : null} ventas={delSocio && !extra ? ventasPor[p.id_producto] : null} detalle={delSocio ? trazaTxt(p.id_producto) : null}
-                sub={!delSocio ? "lo pagaste tú, no se te regresa" : extra ? "costo extra, se cuenta completo" : `${n(p.vendidas)} de ${n(p.cantidad)} vendidas × ${mxn(p.costo_unitario)} c/u`} />
+                sub={!delSocio ? "lo pagaste tú, no se te regresa" : extra ? "costo extra, se cuenta completo" : `${n(p.cantidad)} pzas × ${mxn(p.costo_unitario)} c/u, completo (vendidas o no)`} />
             );
           })}
           {u.productos.filter((p) => p.quien_puso_costo !== "Socio").length > 1 && (
@@ -364,7 +364,7 @@ export default function Socios() {
             </button>
           )}
           <div className="flex justify-between border-t border-white/10 pt-1 font-semibold"><span>Total</span><span>{mxn(debe)}</span></div>
-          <p className="text-white/40">Solo cuenta el costo de lo que ya vendiste; lo que sigue en inventario se suma cuando se venda.</p>
+          <p className="text-white/40">El costo se paga completo, se haya vendido o no.</p>
           {bloqueTraza(u.productos.filter((p) => p.quien_puso_costo === "Socio"))}
         </div>
       );

@@ -19,7 +19,7 @@ export default function InventarioTop({ productos = [] }) {
   const totalPzas = filas.reduce((t, f) => t + f.piezas, 0);
 
   return (
-    <section className="rounded-xl border border-white/10 p-4" style={{ background: T.superficie }}>
+    <section className="rounded-xl border border-white/10 p-4 shadow-sm" style={{ background: T.superficie }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold" style={{ color: T.tinta }}>Lo que más tenemos en inventario</h3>
@@ -28,7 +28,7 @@ export default function InventarioTop({ productos = [] }) {
         <div className="flex shrink-0 gap-1 rounded-lg border border-white/10 p-0.5 text-xs">
           {[["cantidad", "Cantidad"], ["tiempo", "Tiempo"]].map(([v, l]) => (
             <button key={v} onClick={() => setVista(v)} className="rounded-md px-2.5 py-1"
-              style={vista === v ? { background: "rgba(255,255,255,0.12)", color: T.tinta } : { color: T.apagado }}>{l}</button>
+              style={vista === v ? { background: "rgba(37,36,35,0.08)", color: T.tinta } : { color: T.apagado }}>{l}</button>
           ))}
         </div>
       </div>

@@ -239,7 +239,7 @@ export default function Libreta() {
         <h1 className="text-2xl font-semibold">Libreta</h1>
         <div className="card space-y-2 border-amber-500/40 text-sm text-amber-300">
           <p>Falta crear la tabla de la libreta. Pega esto en Supabase (SQL Editor), córrelo una vez y vuelve a abrir esta pantalla:</p>
-          <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-xs text-white/80">{SQL}</pre>
+          <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{SQL}</pre>
         </div>
       </div>
     );

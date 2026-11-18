@@ -48,7 +48,7 @@ export default function Combo({ value, onChange, options, vacio = "— sin valor
         onChange={(e) => { setTexto(e.target.value); setTocado(true); setAbierto(true); setI(0); }} />
       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/40">▾</span>
       {abierto && (
-        <ul ref={lista} role="listbox" className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-white/15 bg-[#1d222a] shadow-xl">
+        <ul ref={lista} role="listbox" className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-white/15 bg-surface shadow-xl">
           {visibles.length === 0 && <li className="px-3 py-2 text-sm text-white/50">Sin resultados</li>}
           {visibles.map((o, k) => (
             <li key={o.v || "vacio"} data-i={k} role="option" aria-selected={String(o.v) === String(value ?? "")}

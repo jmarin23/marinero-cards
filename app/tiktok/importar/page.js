@@ -298,7 +298,7 @@ export default function ImportarTikTok() {
           )}
 
           <datalist id="productos-tt">{prods.map((p) => <option key={p.id_producto} value={etiqueta(p)} />)}</datalist>
-          <div className="sticky bottom-20 rounded-xl border border-white/10 bg-[#171b21] p-4">
+          <div className="sticky bottom-20 rounded-xl border border-white/10 bg-surface p-4">
             <button className="btn w-full" onClick={aplicar} disabled={trabajando || aGuardar === 0}>{trabajando ? "Guardando…" : `Guardar ${aGuardar} cambios`}</button>
             {porAsignar.some((r) => !prods.find((p) => etiqueta(p) === r.prodTxt)) && (
               <p className="mt-2 text-xs text-white/40">Las que no tengan producto se guardan en &quot;Revisar&quot; para completarlas después.</p>

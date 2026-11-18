@@ -3,10 +3,10 @@ import { mxn, compacto } from "@/lib/format";
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const nombreMes = (m) => MES[Number(String(m).split("-")[1]) - 1] || m;
 
-// Tokens del tablero (modo oscuro, validados contra la superficie de las tarjetas)
+// Tokens del tablero (tema claro estilo Power BI)
 export const T = {
-  azul: "#3987e5", azulSuave: "#1c5cab", rojo: "#e66767", naranja: "#d95926", aqua: "#199e70",
-  tinta: "#f0efec", tinta2: "#c3c2b7", apagado: "#898781", rejilla: "rgba(255,255,255,0.07)", base: "#383835", superficie: "#1b1f24", bueno: "#0ca30c",
+  azul: "#0F6CBD", azulSuave: "#7DB4E6", rojo: "#D13438", naranja: "#E66C37", aqua: "#00A69A",
+  tinta: "#252423", tinta2: "#484644", apagado: "#605E5C", rejilla: "rgba(37,36,35,0.08)", base: "#C8C6C4", superficie: "#FFFFFF", bueno: "#107C10",
 };
 
 const num = (x) => Number(x || 0);
@@ -29,7 +29,7 @@ function Sparkline({ valores }) {
 
 function Tile({ label, value, sub, spark }) {
   return (
-    <div className="rounded-xl border border-white/10 p-3" style={{ background: T.superficie }}>
+    <div className="rounded-xl border border-white/10 p-3 shadow-sm" style={{ background: T.superficie }}>
       <div className="text-xs" style={{ color: T.apagado }}>{label}</div>
       <div className="mt-1 text-xl font-semibold tracking-tight" style={{ color: T.tinta }}>{value}</div>
       {spark ? <div className="mt-2"><Sparkline valores={spark} /></div> : null}
@@ -48,11 +48,11 @@ export default function Resumen({ r, meses }) {
 
   return (
     <section className="space-y-3">
-      <div className="rounded-xl border border-white/10 p-5" style={{ background: T.superficie }}>
+      <div className="rounded-xl border border-white/10 p-5 shadow-sm" style={{ background: T.superficie }}>
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm" style={{ color: T.apagado }}>Posición del negocio</div>
           <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-            style={{ borderColor: sube ? "rgba(12,163,12,0.45)" : "rgba(230,103,103,0.5)", color: sube ? T.bueno : T.rojo }}>
+            style={{ borderColor: sube ? "rgba(16,124,16,0.45)" : "rgba(209,52,56,0.5)", color: sube ? T.bueno : T.rojo }}>
             <span aria-hidden>{sube ? "▲" : "▼"}</span>{(roi * 100).toFixed(1)}% ROI
           </span>
         </div>

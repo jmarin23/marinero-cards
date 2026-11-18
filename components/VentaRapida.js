@@ -48,7 +48,7 @@ export default function VentaRapida({ prod, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/70 sm:items-center sm:justify-center" onClick={onClose}>
-      <div className="max-h-[92vh] w-full space-y-4 overflow-y-auto rounded-t-2xl bg-[#171b21] p-5 sm:max-w-md sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[92vh] w-full space-y-4 overflow-y-auto rounded-t-2xl bg-surface p-5 sm:max-w-md sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-semibold">{prod.nombre}</div>

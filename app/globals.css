@@ -2,11 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --background: #0f1216; --foreground: #ece9e1; }
+:root {
+  --background: #f3f2f1;   /* gris Fluent */
+  --foreground: #252423;
+  --ink: 37 36 35;         /* tinta: texto y bordes tenues */
+  --surface: 255 255 255;  /* tarjetas */
+  color-scheme: light;
+}
 body { background: var(--background); color: var(--foreground); }
-.card { @apply rounded-xl border border-white/10 bg-white/5 p-4; }
-.btn { @apply rounded-lg bg-amber-500 px-4 py-3 font-semibold text-black active:scale-95 disabled:opacity-40; }
-.input { @apply w-full rounded-lg border border-white/15 bg-black/30 px-3 py-3 text-base outline-none focus:border-amber-500; }
+.card { @apply rounded-xl border border-white/10 bg-surface p-4 shadow-sm; }
+.btn { @apply rounded-lg bg-amber-500 px-4 py-3 font-semibold active:scale-95 disabled:opacity-40; color: #fff; }
+.input { @apply w-full rounded-lg border border-white/30 bg-surface px-3 py-3 text-base outline-none focus:border-amber-500; }
+.input:focus { box-shadow: 0 0 0 1px #0f6cbd; }
 
 /* campos de número: sin flechitas */
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }

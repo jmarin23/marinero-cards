@@ -60,7 +60,7 @@ export default function FotoLote({ idLote }) {
     return (
       <div className="card space-y-2 border-amber-500/40 text-sm text-amber-300">
         <p>Para guardar la foto del pedido corre esto una vez en Supabase (SQL Editor) y vuelve a abrir:</p>
-        <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-xs text-white/80">{SQL}</pre>
+        <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{SQL}</pre>
       </div>
     );
   }
@@ -87,7 +87,7 @@ export default function FotoLote({ idLote }) {
               <button className="block w-full" onClick={() => setGrande(i)}>
                 <img src={f} alt={`Pedido del lote ${i + 1}`} className="h-40 w-full rounded-lg object-cover object-top" />
               </button>
-              <button className="absolute right-1 top-1 rounded-full bg-black/70 px-2 py-0.5 text-xs text-red-300" disabled={ocupado} onClick={() => quitar(i)}>Quitar</button>
+              <button className="absolute right-1 top-1 rounded-full bg-surface/90 px-2 py-0.5 text-xs text-red-300 shadow" disabled={ocupado} onClick={() => quitar(i)}>Quitar</button>
             </div>
           ))}
         </div>
@@ -97,11 +97,11 @@ export default function FotoLote({ idLote }) {
       {fotos.length > 0 && <p className="text-xs text-white/40">Toca una para verla completa</p>}
       {grande != null && fotos[grande] && (
         <div className="fixed inset-0 z-50 overflow-auto bg-black/95 p-3" onClick={() => setGrande(null)}>
-          <div className="mb-2 flex items-center justify-between text-sm text-white/70">
+          <div className="mb-2 flex items-center justify-between text-sm text-[#ffffff]/70">
             <span className="flex gap-4" onClick={(e) => e.stopPropagation()}>
               {fotos.length > 1 && <button onClick={() => setGrande((grande - 1 + fotos.length) % fotos.length)}>← Anterior</button>}
               {fotos.length > 1 && <button onClick={() => setGrande((grande + 1) % fotos.length)}>Siguiente →</button>}
-              <span className="text-white/40">{grande + 1} de {fotos.length}</span>
+              <span className="text-[#ffffff]/40">{grande + 1} de {fotos.length}</span>
             </span>
             <span>Cerrar ✕</span>
           </div>

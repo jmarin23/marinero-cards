@@ -209,7 +209,7 @@ export default function NuevaCompra() {
       {faltaSQL && (
         <div className="card space-y-2 border-amber-500/40 text-sm text-amber-300">
           <p>Para que la app recuerde el tipo de cambio, la aduana y los precios originales de cada compra, corre esto una vez en Supabase (SQL Editor). Mientras tanto puedes usar la pantalla, pero esos datos no se guardan.</p>
-          <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-xs text-white/80">{`alter table lotes add column if not exists compra jsonb;
+          <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{`alter table lotes add column if not exists compra jsonb;
 alter table productos add column if not exists precio_origen numeric;`}</pre>
         </div>
       )}
@@ -252,7 +252,7 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
                 {fotosNuevas.map((f, i) => (
                   <div key={i} className="relative">
                     <img src={f} alt={`Pedido ${i + 1}`} className="h-24 w-full rounded-lg object-cover object-top" />
-                    <button className="absolute right-1 top-1 rounded-full bg-black/70 px-2 py-0.5 text-xs text-red-300" onClick={() => setFotosNuevas((a) => a.filter((_, j) => j !== i))}>Quitar</button>
+                    <button className="absolute right-1 top-1 rounded-full bg-surface/90 px-2 py-0.5 text-xs text-red-300 shadow" onClick={() => setFotosNuevas((a) => a.filter((_, j) => j !== i))}>Quitar</button>
                   </div>
                 ))}
               </div>
@@ -350,7 +350,7 @@ alter table productos add column if not exists precio_origen numeric;`}</pre>
         <button className="w-full rounded-lg border border-dashed border-white/25 py-3 text-sm text-white/70" onClick={() => setLineas((ls) => [...ls, linea()])}>+ Agregar otro producto</button>
       </section>
 
-      <div className="sticky bottom-20 space-y-2 rounded-xl border border-white/10 bg-[#171b21] p-4">
+      <div className="sticky bottom-20 space-y-2 rounded-xl border border-white/10 bg-surface p-4">
         <div className="flex justify-between"><span className="text-white/60">Total del lote</span><b className="text-amber-400">{mxn(totalLote)}</b></div>
         <button className="btn w-full" onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : editId ? "Guardar cambios" : "Guardar compra"}</button>
       </div>

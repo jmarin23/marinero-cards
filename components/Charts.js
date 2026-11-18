@@ -12,7 +12,7 @@ const etiquetaMes = (m, conAnio) => {
 
 function Tarjeta({ titulo, sub, children, derecha }) {
   return (
-    <section className="rounded-xl border border-white/10 p-4" style={{ background: T.superficie }}>
+    <section className="rounded-xl border border-white/10 p-4 shadow-sm" style={{ background: T.superficie }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold" style={{ color: T.tinta }}>{titulo}</h3>
@@ -36,7 +36,7 @@ function TooltipMes({ active, payload }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-lg border px-3 py-2 text-xs shadow-lg" style={{ background: "#14181d", borderColor: "rgba(255,255,255,0.12)" }}>
+    <div className="rounded-lg border px-3 py-2 text-xs shadow-lg" style={{ background: "#FFFFFF", borderColor: "rgba(37,36,35,0.15)" }}>
       <div className="text-base font-semibold" style={{ color: T.tinta }}>{mxn(d.monto)}</div>
       <div style={{ color: T.tinta2 }}>{d.nombre}</div>
     </div>
@@ -56,7 +56,7 @@ function VentasMes({ meses }) {
             <CartesianGrid vertical={false} stroke={T.rejilla} />
             <XAxis dataKey="nombre" tickLine={false} axisLine={{ stroke: T.base }} tick={{ fill: T.apagado, fontSize: 11 }} />
             <YAxis tickLine={false} axisLine={false} tick={{ fill: T.apagado, fontSize: 11 }} tickFormatter={(v) => (v === 0 ? "0" : compacto(v).replace("$", ""))} width={40} />
-            <Tooltip content={<TooltipMes />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+            <Tooltip content={<TooltipMes />} cursor={{ fill: "rgba(37,36,35,0.05)" }} />
             <Bar dataKey="monto" barSize={22} radius={[4, 4, 0, 0]} isAnimationActive={false}>
               {data.map((d, i) => <Cell key={d.mes} fill={i === ultimo ? T.azul : T.azulSuave} />)}
               <LabelList dataKey="monto" position="top" content={({ x, y, width, value, index }) => (index === ultimo

@@ -210,7 +210,7 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
                 <span className="shrink-0 text-sm">{derecha(r)}</span>
               </button>
               {cfg.vender && Number(r.inventario) > 0 && (
-                <button onClick={() => setVender(r)} className="mr-3 shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-black">Vender</button>
+                <button onClick={() => setVender(r)} className="mr-3 shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-[#ffffff]">Vender</button>
               )}
             </div>
           ))}
@@ -221,7 +221,7 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
 
       {edit && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/70 sm:items-center sm:justify-center" onClick={() => setEdit(null)}>
-          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-[#171b21] p-5 sm:max-w-lg sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-surface p-5 sm:max-w-lg sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-4 text-lg font-semibold">{edit.nuevo ? "Nuevo registro" : `Editar ${edit.id}`}</h2>
             <div className="space-y-3">
               {cfg.campos.map((c) => (
@@ -258,7 +258,7 @@ export default function TablaEditable({ tabla, chipsIniciales = {} }) {
                 ) : (
                   <div className="flex items-center gap-3 text-sm">
                     <span className="text-red-300">¿Seguro?</span>
-                    <button className="rounded-lg bg-red-600 px-3 py-2" onClick={eliminar}>Sí, borrar</button>
+                    <button className="rounded-lg bg-red-600 px-3 py-2 text-[#ffffff]" onClick={eliminar}>Sí, borrar</button>
                     <button className="text-white/60" onClick={() => setBorrar(false)}>No</button>
                   </div>
                 )}

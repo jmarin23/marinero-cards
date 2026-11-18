@@ -193,7 +193,7 @@ export default function Coleccion() {
                       {faltaVentas ? (
                         <div className="space-y-2 text-amber-300">
                           <p>Falta crear la tabla de ventas sueltas. Pega esto en Supabase (SQL Editor), córrelo una vez y vuelve a abrir:</p>
-                          <pre className="whitespace-pre-wrap rounded-lg bg-black/40 p-2 text-white/80">{SQL_VENTAS}</pre>
+                          <pre className="whitespace-pre-wrap rounded-lg bg-black/[0.06] p-2 text-white/80">{SQL_VENTAS}</pre>
                         </div>
                       ) : (
                         <>

@@ -131,7 +131,7 @@ export default function ConciliarPagos() {
       {faltaSQL && (
         <div className="card space-y-2 border-amber-500/50 text-sm">
           <div className="text-amber-300">Antes de guardar, corre esto una vez en el SQL Editor de Supabase:</div>
-          <pre className="overflow-x-auto rounded-lg bg-black/40 p-2 text-xs text-white/80">{SQL}</pre>
+          <pre className="overflow-x-auto rounded-lg bg-black/[0.06] p-2 text-xs text-white/80">{SQL}</pre>
           <button className="underline text-amber-300" onClick={() => navigator.clipboard?.writeText(SQL)}>Copiar</button>
           <button className="ml-4 underline text-white/60" onClick={cargar}>Ya lo corrí</button>
         </div>
@@ -222,7 +222,7 @@ export default function ConciliarPagos() {
           {res.ya.length > 0 && <p className="text-xs text-white/40">{res.ya.length} pedidos de este archivo ya estaban conciliados antes.</p>}
           {res.enEspera.length > 0 && <p className="text-xs text-white/40">{res.enEspera.length} ventas siguen &quot;En espera&quot;: aún no aparecen en este reporte.</p>}
 
-          <div className="fixed inset-x-0 bottom-14 z-30 border-t border-white/10 bg-[#0f1318]/95 p-3 backdrop-blur">
+          <div className="fixed inset-x-0 bottom-14 z-30 border-t border-white/10 bg-surface/95 p-3 backdrop-blur">
             <div className="mx-auto max-w-3xl space-y-2">
               <label className="flex items-start gap-2 text-xs text-white/60">
                 <input type="checkbox" className="mt-0.5" checked={corregir} onChange={(e) => setCorregir(e.target.checked)} />

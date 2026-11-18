@@ -11,6 +11,7 @@ const Ico = ({ d }) => (
 const items = [
   { href: "/", label: "Tablero", grupo: "Reportes", match: (p) => p === "/", d: "M3 3h7v9H3z|M14 3h7v5h-7z|M14 12h7v9h-7z|M3 16h7v5H3z" },
   { href: "/inventario", label: "Inventario", grupo: "Reportes", match: (p) => p.startsWith("/inventario"), d: "M3 7l9-4 9 4v10l-9 4-9-4z|M3 7l9 4 9-4|M12 11v10" },
+  { href: "/analisis", label: "Análisis", grupo: "Reportes", match: (p) => p.startsWith("/analisis"), d: "M4 20V10|M10 20V4|M16 20v-7|M22 20H2" },
   { href: "/socios", label: "Socios", grupo: "Reportes", match: (p) => p.startsWith("/socios") || p.startsWith("/pagarme"), d: "M16 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1|M9.5 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7|M21 20v-1a4 4 0 00-3-3.9|M16 4.1a3.5 3.5 0 010 6.8" },
   { href: "/coleccion", label: "Colección", grupo: "Reportes", match: (p) => p.startsWith("/coleccion"), d: "M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z|M9 8h6|M9 12h6|M9 16h3" },
   { href: "/ventas/nueva", label: "Venta", grupo: "Captura", match: (p) => p.startsWith("/ventas") || p.startsWith("/libreta"), d: "M12 3v18|M16.5 7.5C16.5 5.8 14.5 4.5 12 4.5S7.5 5.8 7.5 7.5 9.5 10.2 12 10.5s4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3" },

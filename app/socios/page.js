@@ -66,7 +66,7 @@ export default function Socios() {
     setRegistrados(propios.map((x) => x.clave.slice(PREFIJO_PCT.length)));
     setHora(new Date());
   }
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); try { const q0 = new URLSearchParams(window.location.search).get("q"); if (q0) setBusca(q0); } catch {} }, []);
   useRefrescar(cargar);
 
   const esSocio = (s) => s && !["Yo", "—", ""].includes(s);
@@ -508,6 +508,28 @@ export default function Socios() {
     );
   }
 
+  // tarjeta de un lote con un socio
+  const tarjetaSocio = (u) => {
+          const l = lineas(u);
+          const sinV = sinVentasU(u);
+          const ver = verPagado || sinV; // un lote sin ventas muestra todo, aunque esté al corriente
+          const verCosto = l.tieneCosto && (ver || l.falCosto > TOL), verGan = l.tieneGan && (ver || l.falGan > TOL);
+          return (
+            <div key={u.k} className="card space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate">{u.nombre}</div>
+                  <div className="text-xs text-white/50">{u.socio}{u.productos.length > 1 ? ` · ${u.productos.length} productos` : ""}{sinV ? " · sin ventas aún" : ""}</div>
+                </div>
+                {chipPct(u.productos)}
+              </div>
+              {verCosto && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
+              {verGan && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
+              {!verCosto && !verGan && <p className="text-xs text-white/40">{sinV ? "Sin ventas aún. El costo lo pagaste tú, no hay nada que regresar." : "Nada pendiente."}</p>}
+            </div>
+          );
+  };
+
   // tarjeta de un lote mío (Yo): inversión y ganancia propias
   const tarjetaYo = (l) => {
     const u = { k: `Y|${l.k}`, socio: "Yo", lote: l.idLote, idProducto: l.idLote ? null : l.idProd, productos: l.productos, pagos: l.pagos };
@@ -533,6 +555,13 @@ export default function Socios() {
                 </div>
               );
   };
+
+  const numLote = (id) => { const m = String(id || "").match(/\d+/); return m ? Number(m[0]) : -1; };
+  const lista = (() => {
+    const out = filas.map((u) => ({ o: numLote(u.lote), t: 0, el: tarjetaSocio(u) }));
+    if (filtro === "Todos") yo.lotesYo.forEach((l) => { const el = tarjetaYo(l); if (el) out.push({ o: numLote(l.idLote), t: 1, el }); });
+    return out.sort((a, b) => b.o - a.o || a.t - b.t);
+  })();
 
   return (
     <div className="space-y-6">
@@ -671,28 +700,8 @@ export default function Socios() {
             {yo.lotesYo.map(tarjetaYo)}
           </>
         )}
-        {filtro !== "Yo" && filas.map((u) => {
-          const l = lineas(u);
-          const sinV = sinVentasU(u);
-          const ver = verPagado || sinV; // un lote sin ventas muestra todo, aunque esté al corriente
-          const verCosto = l.tieneCosto && (ver || l.falCosto > TOL), verGan = l.tieneGan && (ver || l.falGan > TOL);
-          return (
-            <div key={u.k} className="card space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate">{u.nombre}</div>
-                  <div className="text-xs text-white/50">{u.socio}{u.productos.length > 1 ? ` · ${u.productos.length} productos` : ""}{sinV ? " · sin ventas aún" : ""}</div>
-                </div>
-                {chipPct(u.productos)}
-              </div>
-              {verCosto && linea({ u, tipo: "Costo", debe: u.debeCosto, pagado: u.pagCosto, falta: l.falCosto })}
-              {verGan && linea({ u, tipo: "Ganancia", debe: u.parte, pagado: u.pagGan, falta: l.falGan })}
-              {!verCosto && !verGan && <p className="text-xs text-white/40">{sinV ? "Sin ventas aún. El costo lo pagaste tú, no hay nada que regresar." : "Nada pendiente."}</p>}
-            </div>
-          );
-        })}
-        {filtro === "Todos" && yo.lotesYo.filter((l) => l.socios.size === 0).map(tarjetaYo)}
-        {filtro !== "Yo" && filas.length === 0 && (filtro !== "Todos" || !yo.lotesYo.some((l) => l.socios.size === 0 && tarjetaYo(l))) && <p className="text-sm text-white/50">{q ? `No encontré nada con “${busca}”.` : "Nada pendiente con este filtro."}</p>}
+        {filtro !== "Yo" && lista.map((it) => it.el)}
+        {filtro !== "Yo" && lista.length === 0 && <p className="text-sm text-white/50">{q ? `No encontré nada con “${busca}”.` : "Nada pendiente con este filtro."}</p>}
         <p className="text-xs text-white/40">
           Lo que corresponde se calcula con las ventas capturadas. Si capturas una venta después de haber pagado, solo te muestra lo que falta; nada se duplica.
         </p>

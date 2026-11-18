@@ -93,7 +93,7 @@ export default function PagoLote({ idLote, prodIds, costoLote }) {
   if (!(costoLote_ > 0)) return null;
   return (
     <div className="card space-y-3">
-      <div className="text-sm font-semibold">Pago del lote</div>
+      <div className="flex items-baseline justify-between"><span className="text-sm font-semibold">Pago del lote</span><a href={`/socios?q=${encodeURIComponent(idLote)}`} className="text-xs text-amber-300 underline">Ver en Socios →</a></div>
 
       <div>
         <div className="flex items-baseline justify-between text-sm">

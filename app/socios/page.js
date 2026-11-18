@@ -505,7 +505,7 @@ export default function Socios() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Socios</h1>
-        <span className="flex gap-4 text-sm"><Link href="/pagarme" className="text-emerald-400">Ya me puedo pagar →</Link><Link href="/datos/pagos_socios" className="text-amber-400">Editar pagos →</Link></span>
+        <span className="flex gap-4 text-sm"><button className="text-sky-300" onClick={() => setFiltro(filtro === "Yo" ? "Todos" : "Yo")}>{filtro === "Yo" ? "← Socios" : "Mis lotes (Yo) →"}</button><Link href="/pagarme" className="text-emerald-400">Ya me puedo pagar →</Link><Link href="/datos/pagos_socios" className="text-amber-400">Editar pagos →</Link></span>
       </div>
       <div className="-mt-3 flex items-center justify-between text-xs text-white/40">
         <span>{hora ? `Actualizado ${hora.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}` : "Cargando…"}</span>
@@ -597,14 +597,8 @@ export default function Socios() {
 
       <section className="space-y-3">
         <div className="relative">
-          <input className="input !pr-9" type="search" placeholder="Buscar lote, producto o socio…" value={busca} onChange={(e) => { setBusca(e.target.value); if (e.target.value && filtro !== "Todos") setFiltro("Todos"); }} />
+          <input className="input !pr-9" type="search" placeholder="Buscar lote, producto o socio…" value={busca} onChange={(e) => setBusca(e.target.value)} />
           {busca && <button aria-label="Borrar búsqueda" onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">✕</button>}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {nombres.map((nm) => (
-            <button key={nm} onClick={() => setFiltro(nm)}
-              className={`shrink-0 rounded-md border px-3 py-1 text-sm ${filtro === nm ? "border-amber-500 bg-amber-500/20 text-amber-300" : "border-white/15 text-white/60"}`}>{nm}</button>
-          ))}
         </div>
         <label className="flex items-center gap-2 text-sm text-white/60">
           <input type="checkbox" checked={alCorriente} onChange={(e) => setAlCorriente(e.target.checked)} /> Mostrar también lo que ya está pagado
